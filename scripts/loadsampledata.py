@@ -1,16 +1,20 @@
-﻿import snowflake.connector
+﻿import os
+import snowflake.connector
 from datetime import datetime, timedelta
 import random
+from dotenv import load_dotenv
 
 print('🚀 Carregando dados de exemplo no Snowflake RAW...')
 
+load_dotenv()
+
 conn = snowflake.connector.connect(
-    account='UZQPXSP-DG14553',
-    user='VICTORN198',
-    password='7M@PQsn$#E!alj',
-    warehouse='COMPUTE_WH',
-    database='ANALYTICS',
-    schema='RAW'
+    account=os.getenv('SNOWFLAKE_ACCOUNT'),
+    user=os.getenv('SNOWFLAKE_USER'),
+    password=os.getenv('SNOWFLAKE_PASSWORD'),
+    warehouse=os.getenv('SNOWFLAKE_WAREHOUSE'),
+    database=os.getenv('SNOWFLAKE_DATABASE'),
+    schema=os.getenv('SNOWFLAKE_SCHEMA')
 )
 
 cur = conn.cursor()
