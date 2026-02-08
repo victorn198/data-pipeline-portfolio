@@ -1,9 +1,12 @@
-﻿# Environment
-.env
-.env.local
-.env.*.local
+﻿# Environment & Secrets
+.env*
+!/.env.example
+!/.env.template
 profiles.yml
 .user.yml
+
+# Output files
+output.txt
 
 # Gemini CLI
 .gemini/
