@@ -1,0 +1,109 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Raw tables in Snowflake (landing zone). In this project, dbt starts from these sources.
+    database: ANALYTICS
+    schema: RAW
+
+    tables:
+      - name: ORDERS
+        identifier: ORDERS_RAW
+        columns:
+          - name: ORDER_ID
+            tests: [not_null]
+          - name: CUSTOMER_ID
+            tests: [not_null]
+          - name: PRODUCT_ID
+            tests: [not_null]
+
+      - name: CUSTOMERS
+        identifier: CUSTOMERS_RAW
+        columns:
+          - name: CUSTOMER_ID
+            tests: [not_null]
+
+      - name: PRODUCTS
+        identifier: PRODUCTS_RAW
+        columns:
+          - name: PRODUCT_ID
+            tests: [not_null]
+
+models:
+  - name: stg_orders
+    description: Standardized orders from RAW. Applies typing/renames and keeps a 1:1 shape with the source.
+    columns:
+      - name: order_id
+        description: Business identifier of the order.
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Business identifier of the customer who placed the order.
+        tests: [not_null]
+      - name: product_id
+        description: Business identifier of the purchased product.
+        tests: [not_null]
+      - name: order_date
+        description: Date/time when the order was created.
+        tests: [not_null]
+      - name: status
+        description: Order status from the source system.
+        tests:
+          - accepted_values:
+              values: ['pending', 'paid', 'cancelled', 'shipped', 'completed']
+
+  - name: stg_customers
+    description: Standardized customers from RAW.
+    columns:
+      - name: customer_id
+        description: Business identifier of the customer.
+        tests: [unique, not_null]
+
+  - name: stg_products
+    description: Standardized products from RAW.
+    columns:
+      - name: product_id
+        description: Business identifier of the product.
+        tests: [unique, not_null]
+
+  - name: dim_customer
+    description: Customer dimension (one row per customer).
+    columns:
+      - name: customer_key
+        description: Surrogate key for the customer dimension.
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Natural/business key from the source system.
+        tests: [unique, not_null]
+
+  - name: dim_product
+    description: Product dimension (one row per product).
+    columns:
+      - name: product_key
+        description: Surrogate key for the product dimension.
+        tests: [unique, not_null]
+      - name: product_id
+        description: Natural/business key from the source system.
+        tests: [unique, not_null]
+
+  - name: fct_sales
+    description: "Sales fact table (grain: one row per order_id or order line, depending on the source)."
+    columns:
+      - name: sales_key
+        description: Surrogate key of the fact table row.
+        tests: [unique, not_null]
+
+      - name: customer_key
+        description: Foreign key to dim_customer.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_key
+
+      - name: product_key
+        description: Foreign key to dim_product.
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_key

@@ -5,6 +5,10 @@
 profiles.yml
 .user.yml
 
+# Gemini CLI
+.gemini/
+.gemini-*
+
 # IDE
 .vscode/
 .idea/
