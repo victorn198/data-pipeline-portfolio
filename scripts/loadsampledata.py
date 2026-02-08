@@ -8,8 +8,7 @@ print('🚀 Loading sample data into Snowflake RAW...')
 
 load_dotenv()
 
-# Connect to Snowflake
-# SNOWFLAKE_ACCOUNT and SNOWFLAKE_DATABASE are hardcoded to avoid .env loading issues.
+# Conecta ao Snowflake usando os valores que funcionaram
 conn = snowflake.connector.connect(
     account='UZMOVYK-JJA45572',
     user=os.getenv('SNOWFLAKE_USER'),
@@ -21,10 +20,12 @@ conn = snowflake.connector.connect(
 
 cur = conn.cursor()
 
-cur.execute("USE DATABASE ANALYTICS")
-cur.execute("USE SCHEMA RAW")
-
-print('📋 Creating RAW tables...')
+# Apaga os dados antigos para garantir que a carga seja limpa
+print('🧹 Cleaning old data...')
+cur.execute('DELETE FROM RAW.CUSTOMERS_RAW;')
+cur.execute('DELETE FROM RAW.PRODUCTS_RAW;')
+cur.execute('DELETE FROM RAW.ORDERS_RAW;')
+conn.commit()
 
 print('📋 Creating RAW tables...')
 cur.execute('CREATE OR REPLACE TABLE RAW.customers_raw (customer_id STRING, customer_name STRING, email STRING, city STRING, state STRING, created_date TIMESTAMP)')

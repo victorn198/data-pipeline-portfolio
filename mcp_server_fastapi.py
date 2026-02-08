@@ -7,7 +7,6 @@ from fastapi import FastAPI, Body
 from pydantic import BaseModel
 import uvicorn
 
-# --- Configuração da Conexão (reutilizando a lógica anterior) ---
 load_dotenv()
 
 def get_snowflake_connection():
@@ -27,7 +26,6 @@ def get_snowflake_connection():
         print(f"Erro ao conectar ao Snowflake: {e}")
         return None
 
-# --- Definição do Servidor FastAPI ---
 app = FastAPI()
 
 class SQLQuery(BaseModel):
@@ -35,10 +33,7 @@ class SQLQuery(BaseModel):
 
 @app.post("/execute_sql")
 def execute_sql_endpoint(query: SQLQuery):
-    """
-    Endpoint para executar uma consulta SQL.
-    Recebe um JSON com a chave "sql" e retorna o resultado.
-    """
+    """Endpoint para executar uma consulta SQL."""
     print(f"Recebida consulta SQL: {query.sql}")
     conn = None
     try:
@@ -62,5 +57,4 @@ def execute_sql_endpoint(query: SQLQuery):
 def read_root():
     return {"message": "Servidor de consulta Snowflake está no ar. Use o endpoint /execute_sql."}
 
-# Para rodar este arquivo, use o comando no terminal:
-# uvicorn mcp_server_fastapi:app --reload
+# Para rodar, use: uvicorn mcp_server_fastapi:app --reload
