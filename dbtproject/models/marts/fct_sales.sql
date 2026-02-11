@@ -62,6 +62,9 @@ facts as (
 
 select * from facts
 
+/*
 {% if is_incremental() %}
 where order_date >= (select coalesce(max(order_date), '1900-01-01'::date) from {{ this }})
 {% endif %}
+*/
+-- Incremental logic removed to ensure full refresh. The is_incremental() macro was not working as expected.
