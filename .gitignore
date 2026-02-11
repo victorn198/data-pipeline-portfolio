@@ -1,35 +1,20 @@
-﻿# Environment & Secrets
-.env*
-!/.env.example
-!/.env.template
-profiles.yml
-.user.yml
-
-# Output files
-output.txt
-
-# Gemini CLI
-.gemini/
-.gemini-*
-
-# IDE
-.vscode/
+﻿.vscode/
 .idea/
-*.swp
-*.swo
-
-# Python
 venv/
 __pycache__/
 *.pyc
-*.egg-info/
 
 # dbt
-dbt_project/target/
-dbt_project/dbt_packages/
-dbtproject/target/
-dbtproject/dbt_packages/
+dbt_packages/
+logs/
+target/
+dbtproject/profiles.yml
 
-# OS
-.DS_Store
-Thumbs.db
+# Snowflake
+.snowflake/
+auth_key.p8
+
+# Env
+.env*
+!/.env.example
+dbtproject/logs/
