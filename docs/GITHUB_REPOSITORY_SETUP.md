@@ -35,6 +35,12 @@ GitHub setting reference:
 
 - https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview
 
+Status:
+
+- repository description: already applied
+- topics: already applied
+- social preview: still requires manual upload in GitHub Settings
+
 ## Suggested Pin / Highlight Order In The README
 
 1. Social preview

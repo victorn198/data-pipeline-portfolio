@@ -2,93 +2,91 @@
 
 ![Social preview](./assets/social-preview.png)
 
-Projeto de analytics engineering ponta a ponta construido com `Python`,
-`PostgreSQL`, `dbt`, `FastAPI`, `Power BI` e dashboard analitico em formato
-`desktop-first`.
+Portfólio de analytics engineering com interface `desktop-first`, construído com
+`Python`, `PostgreSQL`, `dbt`, `FastAPI`, `Power BI` e uma camada própria de
+produto analítico.
 
-Este repositorio foi organizado como estudo de caso de portfolio. A ideia nao
-e mostrar apenas um dashboard final, mas a cadeia completa: ingestao,
-warehouse, qualidade, semantica, API e camada de produto analitico.
+Este repositório foi organizado como estudo de caso. A ideia não é mostrar só
+um dashboard final, mas a cadeia completa: ingestão, modelagem de warehouse,
+testes, monitoramento, semântica, API e experiência de análise.
+
+## Resumo rápido
+
+- `100.000+` linhas de pedidos simuladas
+- `10.000` clientes e `2.000` produtos
+- warehouse com `dbt`, testes e snapshot
+- backend FastAPI e frontend analítico em formato desktop
+- análises de negócio além de KPI básico:
+  - Pareto / `ABC`
+  - `RFM`
+  - cohorts de retenção
+  - anomalias e mudanças estruturais
+  - cenários preditivos
+- recursos de produto:
+  - `Spotlight`
+  - `Compare`
+  - `Bookmarks`
+  - `Recent`
+  - `Action Board`
 
 ## O que o projeto demonstra
 
-- `100.000+` linhas de pedidos simuladas
-- `10.000` clientes
-- `2.000` produtos
-- `8` modelos dbt
-- `1` snapshot dbt
-- `4+` testes SQL
-- `19` testes de API e camada semantica passando hoje
-- experiencia analitica em desktop com:
-  - `Sales Overview`
-  - `Revenue Trends`
-  - `Predictive Outlook`
-  - `Customer Segmentation`
-  - `Retention Cohorts`
-  - `Product Performance`
-  - `Order Flow Operations`
+- ingestão em camada `raw`
+- modelagem de warehouse com `dbt`
+- testes e objetos de qualidade de dados
+- definição semântica de métricas de BI
+- entrega analítica via API
+- uma UX desktop para investigação, não só um dashboard estático
 
 ## Galeria
 
 <img src="./assets/gallery/desktop-home.png" alt="Desktop analytics shell" width="900">
 
-<img src="./assets/gallery/desktop-sales-predictive.png" alt="Sales Overview no dashboard desktop" width="900">
+<img src="./assets/gallery/desktop-sales-predictive.png" alt="Sales Overview e Predictive Outlook no desktop" width="900">
 
-<img src="./assets/gallery/desktop-products-retention.png" alt="Customer Segmentation e Retention Cohorts no dashboard desktop" width="900">
+<img src="./assets/gallery/desktop-products-retention.png" alt="Product Performance e Retention Cohorts no desktop" width="900">
 
 ## Arquitetura
 
-<img src="./assets/diagrams/architecture-overview.png" alt="Arquitetura analitica do projeto" width="900">
+<img src="./assets/diagrams/architecture-overview.png" alt="Arquitetura analítica do projeto" width="900">
 
-## Camadas de warehouse e banco
+## Estrutura de warehouse
 
-<img src="./assets/diagrams/warehouse-model.png" alt="Modelo de warehouse e camadas de banco derivadas do repositorio" width="900">
+<img src="./assets/diagrams/warehouse-model.png" alt="Modelo de warehouse e camadas do banco derivadas do repositório" width="900">
 
-Observacao: a imagem acima representa a estrutura do warehouse a partir do
-repositorio. Nao e screenshot de uma GUI de banco em tempo real. Mantive assim
-para mostrar o desenho tecnico mesmo quando o banco local nao esta rodando.
+A imagem acima é derivada da estrutura do repositório, não de uma GUI de banco
+em tempo real. Mantive assim para preservar o desenho técnico mesmo quando o
+banco local não está rodando.
 
-## Analises presentes no dashboard
+## Métodos analíticos incluídos
 
-- comparacao entre periodos com tratamento correto de borda parcial
-- Pareto e classificacao `ABC`
-- segmentacao `RFM`
-- cohorts de retencao
-- deteccao de anomalias e mudanca estrutural
-- cenarios preditivos (`Base`, `Conservative`, `Upside`)
-- drilldown para membros subjacentes
-- Spotlight windows com filtros locais e contexto congelado
+- comparação entre períodos com alinhamento de bordas parciais
+- análise de concentração com Pareto e `ABC`
+- segmentação de clientes com `RFM`
+- cohorts de retenção
+- detecção de anomalias e mudança estrutural
+- cenários preditivos: `Base`, `Conservative`, `Upside`
+- drilldown até os membros subjacentes
 
-## Funcionalidades de produto
+## Recursos de produto incluídos
 
-- shell desktop com janelas e taskbar
-- `Spotlight` para investigacao focada
-- `Compare` para recortes lado a lado
-- `Bookmarks` para restaurar layouts
+- navegação desktop com janelas e taskbar
+- `Spotlight` com filtros locais e contexto congelado
+- `Compare` para investigação lado a lado
+- `Bookmarks` para restaurar workspaces
 - `Recent` e `Action Board`
-- exportacao CSV
-- temas visuais dentro do desktop
+- exportação CSV de detalhes e comparações
+- temas visuais dentro do shell desktop
 
-## Transparencia sobre uso de IA
+## Início rápido
 
-Eu usei assistente de IA no projeto e nao escondo isso.
+### Pré-requisitos
 
-Usei IA para:
+- Python `3.10+`
+- Docker Desktop ou PostgreSQL local
+- Power BI Desktop (opcional)
 
-- acelerar implementacao
-- explorar alternativas de UI
-- refatorar e limpar codigo
-- ampliar testes
-- redigir documentacao
-- fazer review de seguranca
-
-Nao deleguei o que realmente importa: direcao do produto, framing de negocio,
-validacao das mudancas, rejeicao de solucoes ruins e revisao final. Na pratica,
-usei IA como acelerador profissional, nao como substituto de criterio.
-
-Mais detalhe: [AI Collaboration Disclosure](./docs/AI_COLLABORATION_DISCLOSURE.md)
-
-## Inicio rapido
+### Rodar localmente
 
 ```bash
 docker compose up -d
@@ -108,7 +106,7 @@ uvicorn nextgen_dashboard.backend.main:app --reload --port 8601
 
 Acesse `http://127.0.0.1:8601`
 
-## Qualidade e seguranca
+## Qualidade e segurança
 
 ```bash
 pytest tests/test_nextgen_dashboard_api.py
@@ -117,31 +115,56 @@ python scripts/benchmark_dashboard.py --threshold-seconds 1.50
 
 Hardening aplicado:
 
-- CORS explicito
-- mutacoes do agente desligadas por padrao
-- token para mutacoes quando habilitadas
-- allowlist de assets estaticos
-- escrita atomica no estado local do agente
+- CORS explícito
+- mutações de agente desligadas por padrão
+- token para mutações quando habilitadas
+- allowlist de assets estáticos
+- escrita atômica do estado governado
 
-## Mapa rapido do repositorio
+Veja:
 
-- `fivetran_simulator/`: simulacao de ingestao
-- `dbtproject/models/`: transformacoes dbt
-- `scripts/setup_*.sql`: monitoramento e qualidade
+- [AI Agent Security](./docs/AI_AGENT_SECURITY.md)
+- [Quality Gates](./docs/QUALITY_GATES.md)
+- [SECURITY.md](./SECURITY.md)
+
+## Transparência sobre IA
+
+Eu usei IA durante implementação e revisão, e isso está explícito.
+
+A IA ajudou com:
+
+- trabalho repetitivo de implementação
+- iteração de UI
+- refatoração e limpeza
+- expansão de testes
+- rascunho de documentação
+- apoio em review de segurança
+
+A IA não definiu direção de produto, framing de negócio, critérios de aceite ou
+revisão final. Essas decisões continuaram manuais.
+
+Mais detalhe: [AI Collaboration Disclosure](./docs/AI_COLLABORATION_DISCLOSURE.md)
+
+## Guia rápido do repositório
+
+- `fivetran_simulator/`: simuladores de ingestão e geração de amostra
+- `dbtproject/models/`: transformações do warehouse
+- `dbtproject/tests/`: testes SQL
+- `nextgen_dashboard/`: backend FastAPI e frontend desktop
+- `scripts/setup_*.sql`: monitoramento e objetos operacionais
 - `scripts/benchmark_dashboard.py`: benchmark do dashboard
-- `nextgen_dashboard/`: backend FastAPI + frontend desktop
 - `assets/gallery/`: screenshots reais do projeto
-- `assets/diagrams/`: visuais tecnicos gerados
-- `assets/social-preview.png`: imagem recomendada para social preview no GitHub
+- `assets/diagrams/`: visuais de arquitetura e warehouse
 
-## Documentacao util
+## Documentação útil
 
 - [GitHub Repository Setup](./docs/GITHUB_REPOSITORY_SETUP.md)
-
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Data Lineage](./docs/DATA_LINEAGE.md)
+- [dbt Models](./docs/DBT_MODELS.md)
 - [Measure Dictionary](./docs/MEASURE_DICTIONARY.md)
 - [Predictive Outlook Method](./docs/PREDICTIVE_OUTLOOK_METHOD.md)
 - [Statistical Analytics Stack](./docs/STATISTICAL_ANALYTICS_STACK.md)
 - [Project Interview Narrative](./docs/PROJECT_INTERVIEW_NARRATIVE.md)
-- [Portfolio Action Plan](./docs/PORTFOLIO_ACTION_PLAN.md)
+- [Recruiter Review](./docs/RECRUITER_REVIEW.md)
+- [LinkedIn and GitHub Copy](./docs/LINKEDIN_PROJECT_COPY.md)
