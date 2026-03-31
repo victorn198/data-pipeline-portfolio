@@ -19,10 +19,10 @@ and predictive scenarios.
 ### Portuguese
 
 Projeto de analytics engineering ponta a ponta com Python, PostgreSQL, dbt,
-FastAPI e Power BI. O projeto inclui ingestão de dados, modelagem de warehouse,
-entrega via API e uma interface própria de BI em formato desktop com análises
-de Pareto/ABC, segmentação RFM, cohorts de retenção, detecção de anomalias e
-cenários preditivos.
+FastAPI e Power BI. O projeto inclui ingestao de dados, modelagem de warehouse,
+entrega via API e uma interface propria de BI em formato desktop com analises
+de Pareto/ABC, segmentacao RFM, cohorts de retencao, deteccao de anomalias e
+cenarios preditivos.
 
 ## LinkedIn Post Caption
 
@@ -51,26 +51,26 @@ Repository:
 
 ### Portuguese
 
-Finalizei um projeto de portfólio focado em analytics engineering e BI com
+Finalizei um projeto de portfolio focado em analytics engineering e BI com
 pensamento de produto.
 
-Em vez de montar só um dashboard final, eu construí o fluxo completo:
+Em vez de montar so um dashboard final, eu construi o fluxo completo:
 
-- ingestão simulada
+- ingestao simulada
 - warehouse em PostgreSQL
-- transformações com dbt
+- transformacoes com dbt
 - testes e monitoramento
 - entrega via FastAPI
-- uma interface analítica própria em formato desktop
+- uma interface analitica propria em formato desktop
 
-O dashboard inclui métodos de análise de negócio como Pareto/ABC, RFM, cohorts
-de retenção, detecção de anomalias e cenários preditivos.
+O dashboard inclui metodos de analise de negocio como Pareto/ABC, RFM, cohorts
+de retencao, deteccao de anomalias e cenarios preditivos.
 
-Também usei IA durante implementação e revisão, mas não como substituto de
-critério. Usei como acelerador de execução e comparação de alternativas,
-mantendo a responsabilidade final sobre direção do produto e qualidade.
+Tambem usei IA durante implementacao e revisao, mas nao como substituto de
+criterio. Usei como acelerador de execucao e comparacao de alternativas,
+mantendo a responsabilidade final sobre direcao do produto e qualidade.
 
-Repositório:
+Repositorio:
 
 ## Resume / Project Bullets
 
@@ -84,4 +84,4 @@ Repositório:
 
 - Desenvolvi um projeto ponta a ponta de analytics com Python, PostgreSQL, dbt, FastAPI e Power BI.
 - Modelei `100 mil+` linhas de pedidos simuladas, cobrindo `10 mil` clientes e `2 mil` produtos.
-- Criei uma interface de BI em formato desktop com Spotlight, comparações, drilldowns, RFM, retenção, Pareto/ABC e cenários preditivos.
+- Criei uma interface de BI em formato desktop com Spotlight, comparacoes, drilldowns, RFM, retencao, Pareto/ABC e cenarios preditivos.
