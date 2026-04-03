@@ -2,9 +2,11 @@ import os
 import time
 from random import Random
 
+import psycopg2
 import requests
-import snowflake.connector
 from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = os.getenv("FAKESTORE_API_BASE_URL", "https://fakestoreapi.com")
 API_TIMEOUT_SECONDS = int(os.getenv("FAKESTORE_TIMEOUT_SECONDS", "20"))
@@ -36,7 +38,7 @@ def _fetch_products():
 
 def load_products(conn):
     """
-    Fetches products from Fake Store API and scales them into RAW.PRODUCTS_RAW.
+    Fetches products from Fake Store API and scales them into raw.products_raw.
     Incremental behavior: inserts only missing product IDs.
     """
     products = _fetch_products()
@@ -49,10 +51,10 @@ def load_products(conn):
 
     cur = conn.cursor()
     try:
-        cur.execute("SELECT COUNT(*) FROM RAW.PRODUCTS_RAW")
+        cur.execute("SELECT COUNT(*) FROM raw.products_raw")
         existing_products = int(cur.fetchone()[0] or 0)
         cur.execute(
-            "SELECT COALESCE(MAX(TO_NUMBER(REGEXP_SUBSTR(PRODUCT_ID, '[0-9]+$'))), 0) FROM RAW.PRODUCTS_RAW"
+            "SELECT COALESCE(MAX(CAST(NULLIF(REGEXP_REPLACE(product_id, '\\D', '', 'g'), '') AS BIGINT)), 0) FROM raw.products_raw"
         )
         max_product_number = int(cur.fetchone()[0] or 0)
         start_index = max_product_number
@@ -90,14 +92,14 @@ def load_products(conn):
 
             if len(products_data) >= INSERT_BATCH_SIZE:
                 cur.executemany(
-                    "INSERT INTO RAW.products_raw (product_id, product_name, category, unit_price, stock_quantity) VALUES (%s, %s, %s, %s, %s)",
+                    "INSERT INTO raw.products_raw (product_id, product_name, category, unit_price, stock_quantity) VALUES (%s, %s, %s, %s, %s)",
                     products_data,
                 )
                 products_data.clear()
 
         if products_data:
             cur.executemany(
-                "INSERT INTO RAW.products_raw (product_id, product_name, category, unit_price, stock_quantity) VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO raw.products_raw (product_id, product_name, category, unit_price, stock_quantity) VALUES (%s, %s, %s, %s, %s)",
                 products_data,
             )
         conn.commit()
@@ -109,27 +111,26 @@ def load_products(conn):
 if __name__ == "__main__":
     load_dotenv()
 
-    conn = snowflake.connector.connect(
-        account=os.getenv("SNOWFLAKE_ACCOUNT"),
-        user=os.getenv("SNOWFLAKE_USER"),
-        password=os.getenv("SNOWFLAKE_PASSWORD"),
-        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-        database=os.getenv("SNOWFLAKE_DATABASE"),
-        schema=os.getenv("SNOWFLAKE_SCHEMA"),
+    conn = psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "analytics"),
+        user=os.getenv("POSTGRES_USER", "postgres"),
+        password=os.getenv("POSTGRES_PASSWORD", "postgres"),
     )
 
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM RAW.PRODUCTS_RAW;")
+        cursor.execute("DELETE FROM raw.products_raw;")
         conn.commit()
         cursor.close()
 
         load_products(conn)
 
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM RAW.products_raw")
+        cursor.execute("SELECT COUNT(*) FROM raw.products_raw")
         print(f"Verification: {cursor.fetchone()[0]} products in table.")
         cursor.close()
     finally:
         conn.close()
-        print("Snowflake connection closed.")
+        print("PostgreSQL connection closed.")

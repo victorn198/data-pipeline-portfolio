@@ -8,10 +8,10 @@
             rel="stylesheet"
             href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
         />
-        <link rel="stylesheet" href="/static/desktop_lab.css?v=desktoplab23" />
+        <link rel="stylesheet" href="/static/desktop_lab.css?v=desktoplab33" />
         <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-        <script defer src="/static/desktop_lab.js?v=desktoplab23"></script>
+        <script defer src="/static/desktop_lab.js?v=desktoplab33"></script>
     </head>
     <body>
         <div class="desktop">
@@ -24,104 +24,151 @@
                         <strong>NextGen Analytics Desktop</strong>
                     </div>
                     <div class="topbar-controlbar">
-                        <label class="control-chip">
-                            <span>Start</span>
-                            <input
-                                id="lab-start-date"
-                                type="text"
-                                inputmode="none"
-                                autocomplete="off"
-                            />
-                        </label>
-                        <label class="control-chip">
-                            <span>End</span>
-                            <input
-                                id="lab-end-date"
-                                type="text"
-                                inputmode="none"
-                                autocomplete="off"
-                            />
-                        </label>
-                        <div class="pill-group" id="lab-granularity-pills">
-                            <button
-                                type="button"
-                                class="desktop-pill"
-                                data-granularity="Day"
-                            >
-                                Day
-                            </button>
-                            <button
-                                type="button"
-                                class="desktop-pill active"
-                                data-granularity="Month"
-                            >
-                                Month
-                            </button>
-                            <button
-                                type="button"
-                                class="desktop-pill"
-                                data-granularity="Quarter"
-                            >
-                                Quarter
-                            </button>
-                            <button
-                                type="button"
-                                class="desktop-pill"
-                                data-granularity="Year"
-                            >
-                                Year
-                            </button>
+                        <div class="control-group control-group--dates">
+                            <label class="control-chip">
+                                <span>Start</span>
+                                <input
+                                    id="lab-start-date"
+                                    type="text"
+                                    inputmode="none"
+                                    autocomplete="off"
+                                />
+                            </label>
+                            <label class="control-chip">
+                                <span>End</span>
+                                <input
+                                    id="lab-end-date"
+                                    type="text"
+                                    inputmode="none"
+                                    autocomplete="off"
+                                />
+                            </label>
                         </div>
-                        <label class="control-chip control-chip--select">
-                            <span>Scenario</span>
-                            <select id="lab-scenario">
-                                <option selected>Base</option>
-                                <option>Conservative</option>
-                                <option>Upside</option>
-                            </select>
-                        </label>
-                        <label
-                            class="control-chip control-chip--select control-chip--theme"
-                        >
-                            <span>Window Design</span>
-                            <select id="lab-window-theme">
-                                <option value="glass" selected>
-                                    Glass Blue
-                                </option>
-                                <option value="graphite">Graphite</option>
-                                <option value="light">Light</option>
-                                <option value="desktop">Desktop</option>
-                            </select>
-                        </label>
-                        <div class="topbar-utility-actions">
+                        <div class="control-group control-group--filters">
+                            <label
+                                class="control-chip control-chip--select control-chip--filter control-chip--bare control-chip--category"
+                            >
+                                <select
+                                    id="lab-category"
+                                    aria-label="Category filter"
+                                >
+                                    <option value="">All categories</option>
+                                </select>
+                            </label>
+                            <label
+                                class="control-chip control-chip--select control-chip--filter control-chip--bare control-chip--city"
+                            >
+                                <select id="lab-city" aria-label="City filter">
+                                    <option value="">All cities</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="control-group control-group--granularity">
+                            <div class="pill-group" id="lab-granularity-pills">
+                                <button
+                                    type="button"
+                                    class="desktop-pill"
+                                    data-granularity="Day"
+                                >
+                                    Day
+                                </button>
+                                <button
+                                    type="button"
+                                    class="desktop-pill active"
+                                    data-granularity="Month"
+                                >
+                                    Month
+                                </button>
+                                <button
+                                    type="button"
+                                    class="desktop-pill"
+                                    data-granularity="Quarter"
+                                >
+                                    Quarter
+                                </button>
+                                <button
+                                    type="button"
+                                    class="desktop-pill"
+                                    data-granularity="Year"
+                                >
+                                    Year
+                                </button>
+                            </div>
+                        </div>
+                        <div class="control-group control-group--modes">
+                            <label class="control-chip control-chip--select">
+                                <span>Scenario</span>
+                                <select id="lab-scenario">
+                                    <option selected>Base</option>
+                                    <option>Conservative</option>
+                                    <option>Upside</option>
+                                </select>
+                            </label>
+                            <label
+                                class="control-chip control-chip--select control-chip--theme"
+                            >
+                                <span>Window Design</span>
+                                <select id="lab-window-theme">
+                                    <option value="glass" selected>
+                                        Glass Blue
+                                    </option>
+                                    <option value="graphite">Graphite</option>
+                                    <option value="light">Light</option>
+                                    <option value="desktop">Desktop</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="workspace-tools">
                             <button
                                 class="toolbar-button"
-                                id="open-recent-btn"
+                                id="open-guide-btn"
                                 type="button"
                             >
-                                Recent
+                                Guide
                             </button>
-                            <button
-                                class="toolbar-button"
-                                id="save-bookmark-btn"
-                                type="button"
-                            >
-                                Save Bookmark
-                            </button>
-                            <button
-                                class="toolbar-button"
-                                id="open-bookmarks-btn"
-                                type="button"
-                            >
-                                Bookmarks
-                            </button>
-                            <button
-                                class="toolbar-button"
-                                id="open-actions-btn"
-                                type="button"
-                            >
-                                Action Board
-                            </button>
+                            <div class="workspace-menu-wrap">
+                                <button
+                                    class="toolbar-button"
+                                    id="workspace-menu-toggle"
+                                    type="button"
+                                    aria-expanded="false"
+                                >
+                                    Workspace
+                                </button>
+                                <div
+                                    class="workspace-menu hidden"
+                                    id="workspace-menu"
+                                >
+                                    <button
+                                        class="toolbar-button toolbar-button--micro"
+                                        id="open-recent-btn"
+                                        type="button"
+                                    >
+                                        Recent
+                                    </button>
+                                    <button
+                                        class="toolbar-button toolbar-button--micro"
+                                        id="save-bookmark-btn"
+                                        type="button"
+                                    >
+                                        Save
+                                    </button>
+                                    <button
+                                        class="toolbar-button toolbar-button--micro"
+                                        id="open-bookmarks-btn"
+                                        type="button"
+                                    >
+                                        Bookmarks
+                                    </button>
+                                    <button
+                                        class="toolbar-button toolbar-button--micro"
+                                        id="open-actions-btn"
+                                        type="button"
+                                    >
+                                        Actions
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="top-actions">
@@ -152,6 +199,11 @@
                     <div class="field-block field-block--b"></div>
                     <div class="field-block field-block--c"></div>
                 </div>
+                <aside
+                    class="onboarding-panel hidden"
+                    id="desktop-onboarding"
+                    aria-live="polite"
+                ></aside>
                 <section class="windows-layer" id="windowsLayer"></section>
             </main>
 

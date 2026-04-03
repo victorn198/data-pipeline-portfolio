@@ -1,4 +1,4 @@
-﻿name: "data_pipeline"
+name: "data_pipeline"
 version: "1.0.0"
 config-version: 2
 
@@ -22,10 +22,10 @@ flags:
 models:
   data_pipeline:
     staging:
-      +materialized: view
-      +schema: STAGING
+      +materialized: table
+      +schema: staging
     intermediate:
-      +schema: INTERMEDIATE
+      +schema: intermediate
     marts:
       +materialized: table
-      +schema: MARTS
+      +schema: marts

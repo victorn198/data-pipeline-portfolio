@@ -1,4 +1,4 @@
-name: dbt Core CI
+﻿name: dbt Core CI
 
 on:
   push:
@@ -12,6 +12,28 @@ jobs:
   dbt_run:
     name: Run dbt models and tests
     runs-on: ubuntu-latest
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_SCHEMA: raw
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/analytics
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: analytics
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d analytics"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Check out the repository
@@ -20,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
@@ -28,32 +50,34 @@ jobs:
           pip install -r requirements.txt
 
       - name: Setup dbt profiles
-        env:
-          SNOWFLAKE_ACCOUNT: ${% raw %}{{ secrets.SNOWFLAKE_ACCOUNT }}{% endraw %}
-          SNOWFLAKE_USER: ${% raw %}{{ secrets.SNOWFLAKE_USER }}{% endraw %}
-          SNOWFLAKE_PASSWORD: ${% raw %}{{ secrets.SNOWFLAKE_PASSWORD }}{% endraw %}
-          SNOWFLAKE_WAREHOUSE: ${% raw %}{{ secrets.SNOWFLAKE_WAREHOUSE }}{% endraw %}
-          SNOWFLAKE_DATABASE: ${% raw %}{{ secrets.SNOWFLAKE_DATABASE }}{% endraw %}
-          SNOWFLAKE_SCHEMA: ${% raw %}{{ secrets.SNOWFLAKE_SCHEMA }}{% endraw %}
         run: |
           mkdir -p ~/.dbt/
-          echo "config:" > ~/.dbt/profiles.yml
-          echo "  send_anonymous_usage_stats: False" >> ~/.dbt/profiles.yml
-          echo "" >> ~/.dbt/profiles.yml
-          echo "data_pipeline:" >> ~/.dbt/profiles.yml
-          echo "  target: dev" >> ~/.dbt/profiles.yml
-          echo "  outputs:" >> ~/.dbt/profiles.yml
-          echo "    dev:" >> ~/.dbt/profiles.yml
-          echo "      type: snowflake" >> ~/.dbt/profiles.yml
-          echo "      account: $SNOWFLAKE_ACCOUNT" >> ~/.dbt/profiles.yml
-          echo "      user: $SNOWFLAKE_USER" >> ~/.dbt/profiles.yml
-          echo "      password: $SNOWFLAKE_PASSWORD" >> ~/.dbt/profiles.yml
-          echo "      role: ACCOUNTADMIN" >> ~/.dbt/profiles.yml
-          echo "      database: $SNOWFLAKE_DATABASE" >> ~/.dbt/profiles.yml
-          echo "      warehouse: $SNOWFLAKE_WAREHOUSE" >> ~/.dbt/profiles.yml
-          echo "      schema: $SNOWFLAKE_SCHEMA" >> ~/.dbt/profiles.yml
-          echo "      threads: 4" >> ~/.dbt/profiles.yml
-          echo "      client_session_keep_alive: False" >> ~/.dbt/profiles.yml
+          cat <<'EOF' > ~/.dbt/profiles.yml
+          data_pipeline:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: localhost
+                user: postgres
+                password: postgres
+                port: 5432
+                dbname: analytics
+                schema: raw
+                threads: 4
+                keepalives_idle: 0
+          EOF
+
+      - name: Setup PostgreSQL schemas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql "postgresql://postgres:postgres@localhost:5432/analytics" -f scripts/setup_postgres.sql
+
+      - name: Load sample RAW data
+        env:
+          PIPELINE_LOAD_MODE: full_refresh
+        run: python scripts/loadsampledata.py
 
       - name: Run dbt deps
         run: dbt deps
@@ -63,6 +87,20 @@ jobs:
         run: dbt run
         working-directory: ./dbtproject
 
+      - name: Run dbt snapshots
+        run: dbt snapshot
+        working-directory: ./dbtproject
+
       - name: Run dbt tests
         run: dbt test
         working-directory: ./dbtproject
+
+      - name: Run NextGen dashboard API tests
+        run: pytest tests/test_nextgen_dashboard_api.py
+
+      - name: Run NextGen dashboard metric audit
+        run: python scripts/audit_dashboard_metrics.py --summary-only
+
+      - name: Run NextGen dashboard benchmark
+        run: python scripts/benchmark_dashboard.py --threshold-seconds 1.50
+

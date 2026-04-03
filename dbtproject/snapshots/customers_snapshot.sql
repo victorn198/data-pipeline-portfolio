@@ -2,7 +2,7 @@
 
 {{
     config(
-      enabled=False,
+      enabled=True,
       target_schema='snapshots',
       strategy='check',
       unique_key='customer_id',

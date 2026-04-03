@@ -3,9 +3,11 @@ import time
 from datetime import datetime, timedelta
 from random import Random
 
+import psycopg2
 import requests
-import snowflake.connector
 from dotenv import load_dotenv
+
+load_dotenv()
 
 API_BASE_URL = os.getenv("FAKESTORE_API_BASE_URL", "https://fakestoreapi.com")
 API_TIMEOUT_SECONDS = int(os.getenv("FAKESTORE_TIMEOUT_SECONDS", "20"))
@@ -37,7 +39,7 @@ def _fetch_users():
 
 def load_customers(conn):
     """
-    Fetches customers from Fake Store API and scales them into RAW.CUSTOMERS_RAW.
+    Fetches customers from Fake Store API and scales them into raw.customers_raw.
     Incremental behavior: inserts only missing customer IDs.
     """
     users = _fetch_users()
@@ -51,10 +53,10 @@ def load_customers(conn):
 
     cur = conn.cursor()
     try:
-        cur.execute("SELECT COUNT(*) FROM RAW.CUSTOMERS_RAW")
+        cur.execute("SELECT COUNT(*) FROM raw.customers_raw")
         existing_customers = int(cur.fetchone()[0] or 0)
         cur.execute(
-            "SELECT COALESCE(MAX(TO_NUMBER(REGEXP_SUBSTR(CUSTOMER_ID, '[0-9]+$'))), 0) FROM RAW.CUSTOMERS_RAW"
+            "SELECT COALESCE(MAX(CAST(NULLIF(REGEXP_REPLACE(customer_id, '\\D', '', 'g'), '') AS BIGINT)), 0) FROM raw.customers_raw"
         )
         max_customer_number = int(cur.fetchone()[0] or 0)
         start_index = max_customer_number
@@ -94,14 +96,14 @@ def load_customers(conn):
 
             if len(customers_data) >= INSERT_BATCH_SIZE:
                 cur.executemany(
-                    "INSERT INTO RAW.customers_raw (customer_id, customer_name, email, city, state, created_date) VALUES (%s, %s, %s, %s, %s, %s)",
+                    "INSERT INTO raw.customers_raw (customer_id, customer_name, email, city, state, created_date) VALUES (%s, %s, %s, %s, %s, %s)",
                     customers_data,
                 )
                 customers_data.clear()
 
         if customers_data:
             cur.executemany(
-                "INSERT INTO RAW.customers_raw (customer_id, customer_name, email, city, state, created_date) VALUES (%s, %s, %s, %s, %s, %s)",
+                "INSERT INTO raw.customers_raw (customer_id, customer_name, email, city, state, created_date) VALUES (%s, %s, %s, %s, %s, %s)",
                 customers_data,
             )
         conn.commit()
@@ -113,27 +115,26 @@ def load_customers(conn):
 if __name__ == "__main__":
     load_dotenv()
 
-    conn = snowflake.connector.connect(
-        account=os.getenv("SNOWFLAKE_ACCOUNT"),
-        user=os.getenv("SNOWFLAKE_USER"),
-        password=os.getenv("SNOWFLAKE_PASSWORD"),
-        warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-        database=os.getenv("SNOWFLAKE_DATABASE"),
-        schema=os.getenv("SNOWFLAKE_SCHEMA"),
+    conn = psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "analytics"),
+        user=os.getenv("POSTGRES_USER", "postgres"),
+        password=os.getenv("POSTGRES_PASSWORD", "postgres"),
     )
 
     try:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM RAW.CUSTOMERS_RAW;")
+        cursor.execute("DELETE FROM raw.customers_raw;")
         conn.commit()
         cursor.close()
 
         load_customers(conn)
 
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM RAW.customers_raw")
+        cursor.execute("SELECT COUNT(*) FROM raw.customers_raw")
         print(f"Verification: {cursor.fetchone()[0]} customers in table.")
         cursor.close()
     finally:
         conn.close()
-        print("Snowflake connection closed.")
+        print("PostgreSQL connection closed.")

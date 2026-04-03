@@ -2,13 +2,13 @@ version: 2
 
 sources:
   - name: raw
-    description: Raw tables in Snowflake (landing zone). In this project, dbt starts from these sources.
-    database: ANALYTICS
-    schema: RAW
+    description: Raw tables in PostgreSQL (landing zone). In this project, dbt starts from these sources.
+    database: "{{ env_var('POSTGRES_DB', 'analytics') }}"
+    schema: raw
 
     tables:
       - name: ORDERS
-        identifier: ORDERS_RAW
+        identifier: orders_raw
         columns:
           - name: ORDER_ID
             tests: [not_null]
@@ -18,38 +18,15 @@ sources:
             tests: [not_null]
 
       - name: CUSTOMERS
-        identifier: CUSTOMERS_RAW
+        identifier: customers_raw
         columns:
           - name: CUSTOMER_ID
             tests: [not_null]
 
       - name: PRODUCTS
-        identifier: PRODUCTS_RAW
+        identifier: products_raw
         columns:
           - name: PRODUCT_ID
-            tests: [not_null]
-
-  - name: snapshots_native
-    description: Native Snowflake SCD2 snapshots managed by Snowflake Tasks/Procedures.
-    database: ANALYTICS
-    schema: SNAPSHOTS
-
-    tables:
-      - name: CUSTOMERS_SCD2
-        description: Customer SCD2 history table managed in Snowflake.
-        columns:
-          - name: CUSTOMER_ID
-            tests: [not_null]
-          - name: VALID_FROM
-            tests: [not_null]
-          - name: IS_CURRENT
-            tests: [not_null]
-
-      - name: CUSTOMERS_SCD2_CURRENT
-        identifier: VW_CUSTOMERS_SCD2_CURRENT
-        description: Current-state customer view from SCD2 table.
-        columns:
-          - name: CUSTOMER_ID
             tests: [not_null]
 
 models:
@@ -80,13 +57,6 @@ models:
     columns:
       - name: customer_id
         description: Business identifier of the customer.
-        tests: [unique, not_null]
-
-  - name: stg_customers_snapshot_current
-    description: Current customer state from native Snowflake SCD2 snapshot.
-    columns:
-      - name: customer_id
-        description: Business identifier of the current customer state.
         tests: [unique, not_null]
 
   - name: stg_products

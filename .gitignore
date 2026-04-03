@@ -30,3 +30,10 @@ nextgen_dashboard/agent_data/
 .pytest_cache/
 nextgen_dashboard_uvicorn*.log
 uvicorn_nextgen.log
+
+# Local design extraction and prompt scratchpad
+assets/design_refs/
+assets/prompts/
+tools/screenshot-to-code/
+scripts/extract_design_with_s2c.py
+test_postgres.py

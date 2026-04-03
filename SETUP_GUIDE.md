@@ -1,63 +1,70 @@
-# Guia de Configuração do Projeto de Pipeline de Dados
+# Setup Guide (PostgreSQL)
 
-Este documento fornece um guia passo a passo para configurar e executar este projeto, garantindo uma conexão bem-sucedida com o Snowflake e o uso correto dos scripts.
+## 1. Requirements
 
-## 1. Pré-requisitos
+- Docker Desktop (optional)
+- Python 3.10+
+- Git
+- PostgreSQL client (`psql`)
 
-- **Python 3.9+**: Certifique-se de que uma versão compatível do Python esteja instalada.
-- **Conta Snowflake**: Você precisa de uma conta Snowflake ativa com um usuário, senha e acesso a um warehouse, banco de dados e schema.
-
-## 2. Instalação
-
-Primeiro, configure um ambiente virtual Python para isolar as dependências do projeto.
+## 2. Clone and install
 
 ```bash
-# Crie um ambiente virtual na pasta do projeto
+git clone <your-repo-url>
+cd data-pipeline-portfolio
 python -m venv venv
-
-# Ative o ambiente virtual
-# No Windows:
-.\venv\Scripts\activate
-# No macOS/Linux:
-# source venv/bin/activate
-```
-
-Com o ambiente ativado, instale os pacotes Python necessários:
-
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## 3. Configuração (Passo Crítico)
+## 3. Environment variables
 
-O projeto foi padronizado para usar um único arquivo `.env` para gerenciar todas as credenciais e configurações.
+Create `.env` from template:
 
-**3.1. Crie o arquivo `.env`**
-
-Na pasta principal do projeto, crie um arquivo chamado exatamente `.env`.
-
-**3.2. Adicione as Variáveis de Configuração**
-
-Copie o modelo abaixo para o seu arquivo `.env` e substitua os valores de exemplo pelas suas credenciais reais.
-
-```env
-# --- Conexão Snowflake ---
-SNOWFLAKE_ACCOUNT="seu_identificador_de_conta"
-SNOWFLAKE_USER="seu_usuario_snowflake"
-SNOWFLAKE_PASSWORD="sua_senha_snowflake"
-SNOWFLAKE_WAREHOUSE="seu_warehouse_de_computacao"
-SNOWFLAKE_DATABASE="seu_banco_de_dados"
-SNOWFLAKE_SCHEMA="seu_schema"
-
-# --- API do Google Gemini ---
-GEMINI_API_KEY="sua_chave_de_api_do_gemini"
+```bash
+cp .env.example .env
 ```
 
-**3.3. Entendendo as Variáveis do Snowflake**
+## 4. Start PostgreSQL
 
-- `SNOWFLAKE_ACCOUNT`: Este é o seu **identificador de conta**. Você pode encontrá-lo na URL que usa para acessar o Snowflake (ex: `identificador_de_conta.snowflakecomputing.com`). **Não inclua** a parte `.snowflakecomputing.com`.
+Docker option:
 
-- `SNOWFLAKE_USER`: O nome de usuário que você usa para fazer login no Snowflake.
+```bash
+docker compose up -d
+```
 
-- `SNOWFLAKE_PASSWORD`: A senha para o usuário especificado.
-    - **MUITO IMPORTANTE**: Se sua senha contiver caracteres especiais como `#`, `$`, ou `!`, é mais seguro envolvê-la em **aspas duplas (`
+Native PostgreSQL option:
+- skip Docker and set `.env` with your local connection (example port `5433`).
+
+## 5. Validate DB connection
+
+```bash
+python test_postgres.py
+```
+
+## 6. Load raw data
+
+```bash
+python scripts/loadsampledata.py --mode full_refresh
+```
+
+## 7. Run dbt models, snapshots, tests
+
+```bash
+cd dbtproject
+dbt deps
+dbt run --full-refresh
+dbt snapshot
+dbt test
+```
+
+## 8. Setup monitoring and quality SQL objects
+
+```bash
+cd ..
+psql "postgresql://postgres:postgres@localhost:5432/analytics" -f scripts/setup_data_quality_audit.sql
+psql "postgresql://postgres:postgres@localhost:5432/analytics" -f scripts/setup_data_quality_alerting.sql
+psql "postgresql://postgres:postgres@localhost:5432/analytics" -f scripts/setup_operational_monitoring_views.sql
+```
+
+If your local PostgreSQL runs on `5433`, replace `5432` with `5433`.
