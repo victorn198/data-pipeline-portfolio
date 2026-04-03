@@ -5,7 +5,7 @@ MARTS: Product Dimension
 {{ config(
     materialized='table',
     tags=['marts', 'daily'],
-    schema='MARTS'
+    schema='marts'
 ) }}
 
 with products as (
@@ -22,3 +22,4 @@ with products as (
 )
 
 select * from products
+

@@ -30,7 +30,25 @@ node --check nextgen_dashboard/frontend/app.js
 
 This is the minimum guard for JS changes.
 
-## 3. Dashboard Benchmark
+## 3. Dashboard Metric Audit
+
+Run:
+
+```powershell
+python scripts/audit_dashboard_metrics.py --summary-only
+```
+
+This audit cross-checks KPI math and payload consistency across:
+
+- default monthly and quarterly contexts
+- recent 90-day daily context
+- top category, city, and combined slices
+- predictive scenario ordering and forecast bands
+- retention cohort invariants
+
+It exits non-zero when any contract breaks, so it is safe to use in CI.
+
+## 4. Dashboard Benchmark
 
 Run:
 
@@ -51,7 +69,7 @@ By default it measures:
 - `products`
 - `operations`
 
-## 4. dbt / Warehouse Gate
+## 5. dbt / Warehouse Gate
 
 When changing pipeline logic or marts:
 
@@ -62,7 +80,7 @@ dbt snapshot
 dbt test
 ```
 
-## 5. Manual Smoke
+## 6. Manual Smoke
 
 Before calling a UI change complete:
 

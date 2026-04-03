@@ -109,11 +109,14 @@ const state = {
   filters: {
     startDate: "",
     endDate: "",
+    categories: [],
+    cities: [],
     granularity: "Month",
     scenarioMode: "Base",
   },
   windowTheme: "glass",
   preferencesKey: "nextgen-desktop-lab-preferences",
+  onboardingKey: "nextgen-desktop-onboarding",
   bookmarksKey: "nextgen-desktop-bookmarks",
   actionsKey: "nextgen-desktop-actions",
   annotationsKey: "nextgen-desktop-annotations",
@@ -132,6 +135,14 @@ const state = {
   actionItems: [],
   annotations: [],
   recentEntries: [],
+  onboarding: {
+    dismissed: false,
+    tasks: {
+      salesOpen: false,
+      predictiveOpen: false,
+      spotlightUsed: false,
+    },
+  },
 };
 
 const elements = {
@@ -144,17 +155,32 @@ const elements = {
   desktopToggle: document.getElementById("desktop-toggle"),
   startDate: document.getElementById("lab-start-date"),
   endDate: document.getElementById("lab-end-date"),
+  category: document.getElementById("lab-category"),
+  city: document.getElementById("lab-city"),
   granularityPills: document.getElementById("lab-granularity-pills"),
   scenario: document.getElementById("lab-scenario"),
   windowTheme: document.getElementById("lab-window-theme"),
+  openGuide: document.getElementById("open-guide-btn"),
+  workspaceMenuToggle: document.getElementById("workspace-menu-toggle"),
+  workspaceMenu: document.getElementById("workspace-menu"),
   saveBookmark: document.getElementById("save-bookmark-btn"),
   openRecent: document.getElementById("open-recent-btn"),
   openBookmarks: document.getElementById("open-bookmarks-btn"),
   openActions: document.getElementById("open-actions-btn"),
+  onboarding: document.getElementById("desktop-onboarding"),
   desktop: document.querySelector(".desktop"),
 };
 
 const resizeDirections = ["n", "e", "s", "w", "nw", "ne", "sw", "se"];
+
+function setWorkspaceMenu(open) {
+  if (!elements.workspaceMenu) return;
+  elements.workspaceMenu.classList.toggle("hidden", !open);
+  elements.workspaceMenuToggle?.setAttribute(
+    "aria-expanded",
+    open ? "true" : "false",
+  );
+}
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -181,8 +207,17 @@ function formatCardDelta(value) {
   const css = Number(value || 0) >= 0 ? "up" : "down";
   return `<span class="lab-chip ${css}">${escapeHtml(formatPercent(value))}</span>`;
 }
+function selectedFilterLabel(values, emptyLabel, prefix) {
+  if (!Array.isArray(values) || !values.length) return emptyLabel;
+  return `${prefix}: ${values[0]}`;
+}
 function currentFiltersSummary(filters = state.filters) {
-  return `${filters.startDate} -> ${filters.endDate} | ${filters.granularity}`;
+  return [
+    `${filters.startDate} -> ${filters.endDate}`,
+    filters.granularity,
+    selectedFilterLabel(filters.categories, "All categories", "Category"),
+    selectedFilterLabel(filters.cities, "All cities", "City"),
+  ].join(" | ");
 }
 function themeConfig() {
   return WINDOW_THEMES[state.windowTheme] || WINDOW_THEMES.glass;
@@ -194,6 +229,10 @@ function filtersSnapshot(source = state.filters) {
   return {
     startDate: source.startDate,
     endDate: source.endDate,
+    categories: Array.isArray(source.categories)
+      ? source.categories.filter(Boolean)
+      : [],
+    cities: Array.isArray(source.cities) ? source.cities.filter(Boolean) : [],
     granularity: source.granularity,
     scenarioMode: source.scenarioMode || "Base",
   };
@@ -203,6 +242,8 @@ function cacheKey(pageKey) {
     pageKey,
     state.filters.startDate,
     state.filters.endDate,
+    (state.filters.categories || []).join(","),
+    (state.filters.cities || []).join(","),
     state.filters.granularity,
     state.filters.scenarioMode,
   ].join("::");
@@ -218,6 +259,8 @@ function spotlightCacheKey(config) {
     config.id,
     filters.startDate,
     filters.endDate,
+    (filters.categories || []).join(","),
+    (filters.cities || []).join(","),
     filters.granularity,
     filters.scenarioMode,
     config.kind,
@@ -234,6 +277,10 @@ function buildDashboardUrlForFilters(pageKey, filters, extra = {}) {
     end_date: filters.endDate,
     granularity: filters.granularity,
   });
+  (filters.categories || []).forEach((category) =>
+    params.append("categories", category),
+  );
+  (filters.cities || []).forEach((city) => params.append("cities", city));
   if (pageKey === "predictive")
     params.set("scenario_mode", filters.scenarioMode || "Base");
   Object.entries(extra).forEach(([k, v]) => {
@@ -264,6 +311,10 @@ function buildDetailUrlForFilters(
     drilldown_key: interactionKey,
     drilldown_value: interactionValue,
   });
+  (filters.categories || []).forEach((category) =>
+    params.append("categories", category),
+  );
+  (filters.cities || []).forEach((city) => params.append("cities", city));
   if (pageKey === "predictive")
     params.set("scenario_mode", filters.scenarioMode || "Base");
   return `/api/dashboard/detail?${params.toString()}`;
@@ -318,6 +369,7 @@ function applyRect(win, rect) {
   win.style.height = `${height}px`;
   win.style.left = `${left}px`;
   win.style.top = `${top}px`;
+  updateWindowDensityClass(win);
 }
 function initialRect(win, offsetIndex) {
   const bounds = getLayerRect();
@@ -345,11 +397,26 @@ function initialRect(win, offsetIndex) {
   );
   return { left, top, width, height };
 }
+function updateWindowDensityClass(win) {
+  if (!win) return;
+  const width = win.clientWidth || parseFloat(win.style.width) || 0;
+  win.classList.toggle("is-compact", width > 0 && width < 760);
+  win.classList.toggle("is-tight", width > 0 && width < 560);
+}
 function resizeWindowPlots(win) {
+  updateWindowDensityClass(win);
   if (typeof Plotly === "undefined") return;
   win.querySelectorAll(".lab-plot").forEach((plotEl) => {
     if (plotEl.data) Plotly.Plots.resize(plotEl);
   });
+}
+function plotDensity(plotEl) {
+  const width = Math.max(plotEl?.clientWidth || 0, plotEl?.offsetWidth || 0);
+  return {
+    width,
+    compact: width > 0 && width < 430,
+    tight: width > 0 && width < 350,
+  };
 }
 function getOpenWindows() {
   return Array.from(
@@ -457,6 +524,9 @@ function openWindow(id) {
     return;
   }
   if (win.dataset.windowKind === "page") {
+    if (win.dataset.pageKey === "sales") markOnboardingStep("salesOpen");
+    if (win.dataset.pageKey === "predictive")
+      markOnboardingStep("predictiveOpen");
     trackRecent({
       kind: "page",
       pageKey: win.dataset.pageKey,
@@ -655,6 +725,87 @@ function displayDate(isoDate) {
   const [year, month, day] = String(isoDate).split("-");
   return `${day} / ${month} / ${year}`;
 }
+function parseQueryFilterValues(params, singularKey, pluralKey) {
+  const repeated = params
+    .getAll(pluralKey)
+    .flatMap((value) => String(value || "").split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (repeated.length) return repeated.slice(0, 1);
+  const singular = params.get(singularKey);
+  return singular
+    ? singular
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .slice(0, 1)
+    : [];
+}
+function hydrateFilterSelect(selectEl, values, allLabel) {
+  if (!selectEl) return;
+  const selected = selectEl.value;
+  selectEl.innerHTML = "";
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = allLabel;
+  selectEl.appendChild(allOption);
+  values.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    selectEl.appendChild(option);
+  });
+  if ([...selectEl.options].some((option) => option.value === selected)) {
+    selectEl.value = selected;
+  }
+}
+function normalizeTopbarSelections() {
+  const availableCategories = new Set(state.meta?.categories || []);
+  const availableCities = new Set(state.meta?.cities || []);
+  state.filters.categories = (state.filters.categories || [])
+    .filter(Boolean)
+    .filter(
+      (value) =>
+        availableCategories.size === 0 || availableCategories.has(value),
+    )
+    .slice(0, 1);
+  state.filters.cities = (state.filters.cities || [])
+    .filter(Boolean)
+    .filter((value) => availableCities.size === 0 || availableCities.has(value))
+    .slice(0, 1);
+}
+function syncGlobalFilterSelects() {
+  if (elements.category) {
+    elements.category.value = state.filters.categories?.[0] || "";
+    elements.category
+      .closest(".control-chip")
+      ?.classList.toggle(
+        "is-filtered",
+        Boolean(state.filters.categories?.length),
+      );
+  }
+  if (elements.city) {
+    elements.city.value = state.filters.cities?.[0] || "";
+    elements.city
+      .closest(".control-chip")
+      ?.classList.toggle("is-filtered", Boolean(state.filters.cities?.length));
+  }
+}
+function syncShellStatusText() {
+  if (!state.meta) return;
+  const sliceParts = [];
+  if (state.filters.categories?.length) {
+    sliceParts.push(`category ${state.filters.categories[0]}`);
+  }
+  if (state.filters.cities?.length) {
+    sliceParts.push(`city ${state.filters.cities[0]}`);
+  }
+  const sliceSummary = sliceParts.length
+    ? ` | slice: ${sliceParts.join(" / ")}`
+    : " | slice: all categories / all cities";
+  elements.status.textContent = `${state.meta.data_engine}${sliceSummary}`;
+  elements.taskbarMessage.textContent = `Open a page from the desktop icons. Shared filters refresh open windows.${sliceParts.length ? ` Current slice: ${sliceParts.join(" / ")}.` : ""}`;
+}
 function bindDatePickers() {
   if (typeof flatpickr === "undefined") return;
   const pickerBase = {
@@ -701,6 +852,10 @@ function loadPreferences() {
     if (prefs.windowTheme === "sand") prefs.windowTheme = "light";
     if (prefs.windowTheme && WINDOW_THEMES[prefs.windowTheme])
       state.windowTheme = prefs.windowTheme;
+    if (Array.isArray(prefs.categories))
+      state.filters.categories = prefs.categories.filter(Boolean).slice(0, 1);
+    if (Array.isArray(prefs.cities))
+      state.filters.cities = prefs.cities.filter(Boolean).slice(0, 1);
     if (prefs.granularity) state.filters.granularity = prefs.granularity;
     if (prefs.scenarioMode) state.filters.scenarioMode = prefs.scenarioMode;
   } catch (_) {}
@@ -713,6 +868,8 @@ function applyQueryPreset() {
   const scenario = params.get("scenario");
   const startDate = params.get("start");
   const endDate = params.get("end");
+  const categories = parseQueryFilterValues(params, "category", "categories");
+  const cities = parseQueryFilterValues(params, "city", "cities");
 
   if (theme && WINDOW_THEMES[theme]) state.windowTheme = theme;
   if (granularity && ["Day", "Month", "Quarter", "Year"].includes(granularity))
@@ -721,6 +878,8 @@ function applyQueryPreset() {
     state.filters.scenarioMode = scenario;
   if (startDate) state.filters.startDate = startDate;
   if (endDate) state.filters.endDate = endDate;
+  if (categories.length) state.filters.categories = categories;
+  if (cities.length) state.filters.cities = cities;
 
   return {
     openPages: (params.get("open") || "")
@@ -736,11 +895,288 @@ function savePreferences() {
       state.preferencesKey,
       JSON.stringify({
         windowTheme: state.windowTheme,
+        categories: state.filters.categories || [],
+        cities: state.filters.cities || [],
         granularity: state.filters.granularity,
         scenarioMode: state.filters.scenarioMode,
       }),
     );
   } catch (_) {}
+}
+
+function defaultOnboardingState() {
+  return {
+    dismissed: false,
+    showChecklistWhenComplete: false,
+    tasks: {
+      salesOpen: false,
+      predictiveOpen: false,
+      spotlightUsed: false,
+    },
+  };
+}
+
+function loadOnboardingState() {
+  try {
+    const raw = window.localStorage.getItem(state.onboardingKey);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    state.onboarding = {
+      ...defaultOnboardingState(),
+      ...parsed,
+      tasks: {
+        ...defaultOnboardingState().tasks,
+        ...(parsed?.tasks || {}),
+      },
+    };
+  } catch (_) {
+    state.onboarding = defaultOnboardingState();
+  }
+}
+
+function persistOnboardingState() {
+  try {
+    window.localStorage.setItem(
+      state.onboardingKey,
+      JSON.stringify(state.onboarding),
+    );
+  } catch (_) {}
+}
+
+function onboardingStepCount() {
+  return Object.values(state.onboarding.tasks).filter(Boolean).length;
+}
+
+function onboardingComplete() {
+  return onboardingStepCount() === Object.keys(state.onboarding.tasks).length;
+}
+
+function setGuideVisibility(visible) {
+  state.onboarding.dismissed = !visible;
+  if (!visible) state.onboarding.showChecklistWhenComplete = false;
+  persistOnboardingState();
+  renderOnboarding();
+}
+
+function openGuidePanel() {
+  state.onboarding.dismissed = false;
+  if (onboardingComplete()) state.onboarding.showChecklistWhenComplete = true;
+  persistOnboardingState();
+  renderOnboarding();
+}
+
+function restartGuide() {
+  state.onboarding = defaultOnboardingState();
+  persistOnboardingState();
+  renderOnboarding();
+}
+
+function markOnboardingStep(stepKey) {
+  if (!state.onboarding.tasks.hasOwnProperty(stepKey)) return;
+  if (state.onboarding.tasks[stepKey]) return;
+  state.onboarding.tasks[stepKey] = true;
+  if (onboardingComplete()) state.onboarding.showChecklistWhenComplete = false;
+  persistOnboardingState();
+  renderOnboarding();
+}
+
+function pulseSpotlightTargets(pageKey = "sales") {
+  openWindow(pageKey);
+  const win = document.querySelector(`.window[data-window-id="${pageKey}"]`);
+  if (!win) return;
+  focusWindow(win);
+  const buttons = win.querySelectorAll("[data-spotlight-action]");
+  buttons.forEach((button) => button.classList.add("toolbar-button--pulse"));
+  window.setTimeout(
+    () =>
+      buttons.forEach((button) =>
+        button.classList.remove("toolbar-button--pulse"),
+      ),
+    4200,
+  );
+}
+
+function openGuideWorkspace() {
+  openGuideWorkspacePreset("planning");
+}
+
+function openGuideWorkspacePreset(mode = "planning") {
+  const pair =
+    mode === "customers" ? ["customers", "retention"] : ["sales", "predictive"];
+  openWindow(pair[0]);
+  openWindow(pair[1]);
+  const leftWin = document.querySelector(
+    `.window[data-window-id="${pair[0]}"]`,
+  );
+  const rightWin = document.querySelector(
+    `.window[data-window-id="${pair[1]}"]`,
+  );
+  const layerRect = getLayerRect();
+  if (leftWin && rightWin && layerRect.width >= 1280) {
+    const gap = 18;
+    const left = 118;
+    const width = Math.floor((layerRect.width - left - gap - 24) / 2);
+    const height = Math.min(layerRect.height - 36, 700);
+    applyRect(leftWin, { left, top: 18, width, height });
+    applyRect(rightWin, {
+      left: left + width + gap,
+      top: 18,
+      width,
+      height,
+    });
+  }
+  if (leftWin) focusWindow(leftWin);
+}
+
+function renderStateCard({ title, message, stateType = "empty" }) {
+  return `<div class="lab-empty" data-state="${escapeHtml(stateType)}"><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div></div>`;
+}
+
+function windowMinimumForKind(win) {
+  if (!win) return { width: 520, height: 360 };
+  if (win.dataset.windowKind === "compare") return { width: 860, height: 520 };
+  if (win.dataset.windowKind === "spotlight")
+    return { width: 680, height: 460 };
+  if (win.dataset.windowKind === "bookmarks")
+    return { width: 720, height: 460 };
+  if (win.dataset.windowKind === "actions") return { width: 760, height: 480 };
+  if (win.dataset.windowKind === "recent") return { width: 660, height: 420 };
+  if (win.dataset.pageKey === "predictive") return { width: 760, height: 520 };
+  if (win.dataset.pageKey === "retention") return { width: 740, height: 500 };
+  return { width: 680, height: 460 };
+}
+
+function renderOnboarding() {
+  if (!elements.onboarding || !elements.openGuide) return;
+  const stepsDone = onboardingStepCount();
+  const totalSteps = Object.keys(state.onboarding.tasks).length;
+  const isComplete = onboardingComplete();
+  const showCompleteSummary =
+    isComplete && !state.onboarding.showChecklistWhenComplete;
+  elements.openGuide.textContent = "Guide";
+  elements.openGuide.dataset.guideState = isComplete
+    ? "complete"
+    : "incomplete";
+  elements.openGuide.title = isComplete
+    ? "Guide complete"
+    : `Guide ${stepsDone}/${totalSteps}`;
+  elements.onboarding.classList.toggle("hidden", state.onboarding.dismissed);
+  if (state.onboarding.dismissed) {
+    elements.onboarding.innerHTML = "";
+    return;
+  }
+  if (showCompleteSummary) {
+    elements.onboarding.innerHTML = `
+      <div class="onboarding-card onboarding-card--complete">
+        <span class="onboarding-kicker">Quick Start</span>
+        <div class="onboarding-head">
+          <div>
+            <strong>Workspace basics complete</strong>
+            <p>Reopen the guide from the top bar if you need it again.</p>
+          </div>
+          <span class="onboarding-progress">3/3</span>
+        </div>
+        <div class="onboarding-actions">
+          <button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="checklist">Checklist</button>
+          <button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="restart">Restart</button>
+          <button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="workspace-customers">Customer risk</button>
+          <button class="toolbar-button toolbar-button--ghost" type="button" data-guide-action="dismiss">Hide guide</button>
+        </div>
+      </div>
+    `;
+    elements.onboarding
+      .querySelectorAll("[data-guide-action]")
+      .forEach((button) =>
+        button.addEventListener("click", () => {
+          if (button.dataset.guideAction === "dismiss")
+            setGuideVisibility(false);
+          if (button.dataset.guideAction === "checklist") {
+            state.onboarding.showChecklistWhenComplete = true;
+            persistOnboardingState();
+            renderOnboarding();
+          }
+          if (button.dataset.guideAction === "restart") restartGuide();
+          if (button.dataset.guideAction === "workspace-customers")
+            openGuideWorkspacePreset("customers");
+        }),
+      );
+    return;
+  }
+  const item = (key, title, description, actionLabel = "", action = "") => {
+    const done = state.onboarding.tasks[key];
+    return `
+      <div class="onboarding-item ${done ? "is-complete" : ""}">
+        <span class="onboarding-check" aria-hidden="true">${done ? "&#10003;" : ""}</span>
+        <div class="onboarding-copy">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(description)}</span>
+        </div>
+        ${
+          done
+            ? ""
+            : `<button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="${escapeHtml(action)}">${escapeHtml(actionLabel)}</button>`
+        }
+      </div>
+    `;
+  };
+  elements.onboarding.innerHTML = `
+    <div class="onboarding-card">
+      <span class="onboarding-kicker">Quick Start</span>
+      <div class="onboarding-head">
+        <div>
+          <strong>${isComplete ? "You are ready" : "Start with one simple workflow"}</strong>
+          <p>${isComplete ? "The workspace basics are covered. Keep the guide closed and reopen it if needed." : "Open two core views, then use Spotlight once. That is enough to understand how this desktop works."}</p>
+        </div>
+        <span class="onboarding-progress">${stepsDone}/${totalSteps}</span>
+      </div>
+      <div class="onboarding-actions">
+        <button class="toolbar-button toolbar-button--highlight" type="button" data-guide-action="workspace">Planning workspace</button>
+        <button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="workspace-customers">Customer risk</button>
+        ${
+          isComplete
+            ? '<button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="restart">Restart</button>'
+            : ""
+        }
+        <button class="toolbar-button toolbar-button--ghost" type="button" data-guide-action="dismiss">${isComplete ? "Hide guide" : "Skip for now"}</button>
+      </div>
+      <div class="onboarding-list">
+        ${item("salesOpen", "Open Sales Overview", "Start with the topline page to ground the time slice.", "Open", "sales")}
+        ${item("predictiveOpen", "Open Predictive Outlook", "Use the forecast view next to move from reporting to planning.", "Open", "predictive")}
+        ${item("spotlightUsed", "Use Spotlight once", "Spotlight isolates one chart or table into its own investigation window.", "Show me", "spotlight")}
+      </div>
+      <div class="onboarding-footnote">The guide never blocks the desktop. You can reopen it from the top bar at any time.</div>
+    </div>
+  `;
+  elements.onboarding
+    .querySelectorAll("[data-guide-action]")
+    .forEach((button) =>
+      button.addEventListener("click", () => {
+        const action = button.dataset.guideAction;
+        if (action === "dismiss") {
+          setGuideVisibility(false);
+          return;
+        }
+        if (action === "workspace") {
+          openGuideWorkspacePreset("planning");
+          return;
+        }
+        if (action === "workspace-customers") {
+          openGuideWorkspacePreset("customers");
+          return;
+        }
+        if (action === "restart") {
+          restartGuide();
+          return;
+        }
+        if (action === "sales" || action === "predictive") {
+          openWindow(action);
+          return;
+        }
+        if (action === "spotlight") {
+          pulseSpotlightTargets("sales");
+        }
+      }),
+    );
 }
 
 function storageTtlDays(key) {
@@ -896,17 +1332,26 @@ function restoreWorkspaceSnapshot(snapshot) {
       snapshot.filters?.endDate ||
       state.meta?.default_end_date ||
       state.filters.endDate,
+    categories: Array.isArray(snapshot.filters?.categories)
+      ? snapshot.filters.categories.filter(Boolean).slice(0, 1)
+      : [],
+    cities: Array.isArray(snapshot.filters?.cities)
+      ? snapshot.filters.cities.filter(Boolean).slice(0, 1)
+      : [],
     granularity: snapshot.filters?.granularity || "Month",
     scenarioMode: snapshot.filters?.scenarioMode || "Base",
   };
+  normalizeTopbarSelections();
   if (state.datePickers.start)
     state.datePickers.start.setDate(state.filters.startDate, false, "Y-m-d");
   else elements.startDate.value = displayDate(state.filters.startDate);
   if (state.datePickers.end)
     state.datePickers.end.setDate(state.filters.endDate, false, "Y-m-d");
   else elements.endDate.value = displayDate(state.filters.endDate);
+  syncGlobalFilterSelects();
   elements.scenario.value = state.filters.scenarioMode;
   syncGranularityPills();
+  syncShellStatusText();
   applyWindowTheme(snapshot.windowTheme || "glass");
 
   const ordered = (snapshot.windows || [])
@@ -1116,7 +1561,12 @@ function trackRecent(entry) {
 
 function renderRecentList() {
   if (!state.recentEntries.length) {
-    return `<div class="lab-empty">No recent items yet. Open pages, spotlight windows, or compare views to build a quick reopen list.</div>`;
+    return renderStateCard({
+      title: "No recent items yet",
+      message:
+        "Open pages, spotlight windows, or compare views to build a quick reopen list.",
+      stateType: "empty",
+    });
   }
   return `<div class="bookmark-list">${state.recentEntries
     .map(
@@ -1145,7 +1595,11 @@ function renderRecentList() {
 function renderAnnotations(pageKey) {
   const notes = pageAnnotations(pageKey).slice(0, 4);
   if (!notes.length) {
-    return `<div class="lab-empty">No annotations yet. Use Note to pin context for this page.</div>`;
+    return renderStateCard({
+      title: "No annotations yet",
+      message: "Use Note to pin context for this page.",
+      stateType: "empty",
+    });
   }
   return `<div class="lab-annotation-list">${notes
     .map(
@@ -1164,7 +1618,11 @@ function renderAnnotations(pageKey) {
 
 function renderBookmarksList() {
   if (!state.bookmarks.length) {
-    return `<div class="lab-empty">No bookmarks saved yet. Save the current desktop to restore it later.</div>`;
+    return renderStateCard({
+      title: "No bookmarks saved yet",
+      message: "Save the current desktop to restore it later.",
+      stateType: "empty",
+    });
   }
   return `<div class="bookmark-list">${state.bookmarks
     .slice()
@@ -1198,7 +1656,12 @@ function renderBookmarksList() {
 
 function renderActionList() {
   if (!state.actionItems.length) {
-    return `<div class="lab-empty">No action items yet. Use Action inside a page window to push a follow-up into the board.</div>`;
+    return renderStateCard({
+      title: "No action items yet",
+      message:
+        "Use Action inside a page window to push a follow-up into the board.",
+      stateType: "empty",
+    });
   }
   return `<div class="board-list">${state.actionItems
     .map(
@@ -1693,6 +2156,8 @@ function buildCompareWindowMarkup(id, pageKey) {
     kind: "compare",
     width: 1040,
     height: 720,
+    minWidth: 920,
+    minHeight: 560,
     body: `
       <section class="lab-panel compare-shell">
         <div class="lab-panel-head">
@@ -1774,6 +2239,16 @@ async function renderCompareWindow(windowId, force = false) {
   const controller = new AbortController();
   state.requests.set(requestKey, controller);
   statusEl.textContent = `Comparing ${config.leftValue} vs ${config.rightValue}...`;
+  win.querySelector('[data-role="compare-banner"]').innerHTML = renderStateCard(
+    {
+      title: "Loading comparison",
+      message: `Comparing ${config.leftValue} and ${config.rightValue} in the same global slice.`,
+      stateType: "loading",
+    },
+  );
+  win.querySelector('[data-role="compare-left-cards"]').innerHTML = "";
+  win.querySelector('[data-role="compare-right-cards"]').innerHTML = "";
+  win.querySelector('[data-role="compare-chart"]').innerHTML = "";
   try {
     const dimensionParam =
       config.dimension === "category" ? "categories" : "cities";
@@ -2148,44 +2623,73 @@ function basePlotLayout({
   yTitle,
   metricFormat,
   showLegend = true,
+  plotEl = null,
   extra = {},
 }) {
   const theme = themeConfig();
   const { isPercentMetric, axisTickFormat, valueSuffix } =
     metricPresentation(metricFormat);
-  return {
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: theme.plotBg,
-    margin: { l: 86, r: 24, t: 26, b: 84 },
-    xaxis: {
-      title: { text: xTitle || "", standoff: 12 },
-      color: theme.text,
-      tickangle: -28,
-      automargin: true,
-      tickfont: { size: 11 },
-      gridcolor: theme.grid,
-    },
-    yaxis: {
-      title: { text: yTitle || "", standoff: 12 },
-      color: theme.text,
-      automargin: true,
-      tickfont: { size: 11 },
-      gridcolor: theme.grid,
-      separatethousands: !isPercentMetric,
-      tickformat: axisTickFormat,
-      ticksuffix: valueSuffix,
-    },
-    legend: showLegend
+  const density = plotDensity(plotEl);
+  const baseMargin = density.tight
+    ? { l: 58, r: 18, t: 18, b: 104 }
+    : density.compact
+      ? { l: 68, r: 20, t: 20, b: 116 }
+      : { l: 86, r: 24, t: 26, b: 84 };
+  const baseXaxis = {
+    title: { text: density.tight ? "" : xTitle || "", standoff: 12 },
+    color: theme.text,
+    tickangle: density.tight ? -38 : density.compact ? -32 : -28,
+    automargin: true,
+    tickfont: { size: density.tight ? 10 : 11 },
+    gridcolor: theme.grid,
+  };
+  const baseYaxis = {
+    title: { text: density.tight ? "" : yTitle || "", standoff: 12 },
+    color: theme.text,
+    automargin: true,
+    tickfont: { size: density.tight ? 10 : 11 },
+    gridcolor: theme.grid,
+    separatethousands: !isPercentMetric,
+    tickformat: axisTickFormat,
+    ticksuffix: valueSuffix,
+  };
+  const baseLegend = showLegend
+    ? density.compact
       ? {
+          orientation: "h",
+          x: 0,
+          y: -0.22,
+          xanchor: "left",
+          yanchor: "top",
+          font: { color: theme.text, size: density.tight ? 10 : 11 },
+        }
+      : {
           orientation: "h",
           x: 1,
           y: 1.12,
           xanchor: "right",
           yanchor: "top",
-          font: { color: theme.text },
+          font: { color: theme.text, size: 11 },
         }
-      : { orientation: "h", x: 1, y: 1.12, font: { color: theme.text } },
-    ...extra,
+    : { orientation: "h", x: 1, y: 1.12, font: { color: theme.text } };
+
+  const { margin, xaxis, yaxis, legend, ...restExtra } = extra;
+  return {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: theme.plotBg,
+    margin: { ...baseMargin, ...(margin || {}) },
+    xaxis: {
+      ...baseXaxis,
+      ...(xaxis || {}),
+      title: { ...baseXaxis.title, ...(xaxis?.title || {}) },
+    },
+    yaxis: {
+      ...baseYaxis,
+      ...(yaxis || {}),
+      title: { ...baseYaxis.title, ...(yaxis?.title || {}) },
+    },
+    legend: showLegend ? { ...baseLegend, ...(legend || {}) } : undefined,
+    ...restExtra,
   };
 }
 
@@ -2288,10 +2792,24 @@ function renderPrimaryPlot(plotEl, payload, options = {}) {
   const { valueFormat, valueSuffix } = metricPresentation(
     payload.trend_metric_format,
   );
+  const density = plotDensity(plotEl);
   const isDailyTrend = payload.granularity === "Day";
-  const xTickAngle = isDailyTrend ? -52 : -28;
+  const xTickAngle = isDailyTrend
+    ? density.tight
+      ? -62
+      : density.compact
+        ? -58
+        : -52
+    : density.tight
+      ? -36
+      : density.compact
+        ? -32
+        : -28;
   const xTickCount = isDailyTrend
-    ? Math.min(14, Math.max(8, Math.ceil(trendData.length / 8)))
+    ? Math.min(
+        density.tight ? 8 : density.compact ? 10 : 14,
+        Math.max(6, Math.ceil(trendData.length / 8)),
+      )
     : undefined;
 
   if (payload.page === "predictive") {
@@ -2370,13 +2888,17 @@ function renderPrimaryPlot(plotEl, payload, options = {}) {
         xTitle: payload.trend_x_title,
         yTitle: payload.trend_y_title,
         metricFormat: payload.trend_metric_format,
+        plotEl,
         extra: {
           xaxis: {
-            title: { text: payload.trend_x_title, standoff: 12 },
+            title: {
+              text: density.tight ? "" : payload.trend_x_title,
+              standoff: 12,
+            },
             color: theme.text,
             tickangle: xTickAngle,
             automargin: true,
-            tickfont: { size: 11 },
+            tickfont: { size: density.tight ? 10 : 11 },
             nticks: xTickCount,
             gridcolor: theme.grid,
           },
@@ -2504,19 +3026,30 @@ function renderPrimaryPlot(plotEl, payload, options = {}) {
       xTitle: payload.trend_x_title,
       yTitle: payload.trend_y_title,
       metricFormat: payload.trend_metric_format,
+      plotEl,
       extra: {
-        margin: { l: 86, r: 24, t: 26, b: 84 },
+        margin: density.compact
+          ? {
+              l: density.tight ? 58 : 68,
+              r: 18,
+              t: 22,
+              b: density.tight ? 102 : 112,
+            }
+          : { l: 86, r: 24, t: 26, b: 84 },
         barmode:
           payload.current_trace_style === "bar" &&
           payload.previous_trace_style === "bar"
             ? "group"
             : undefined,
         xaxis: {
-          title: { text: payload.trend_x_title, standoff: 12 },
+          title: {
+            text: density.tight ? "" : payload.trend_x_title,
+            standoff: 12,
+          },
           color: theme.text,
           tickangle: xTickAngle,
           automargin: true,
-          tickfont: { size: 11 },
+          tickfont: { size: density.tight ? 10 : 11 },
           nticks: xTickCount,
           gridcolor: theme.grid,
         },
@@ -2544,6 +3077,7 @@ function renderSecondaryPlot(
     return;
   }
   const theme = themeConfig();
+  const density = plotDensity(plotEl);
   const x = chartPayload.points.map((point) => point.label);
   const current = chartPayload.points.map((point) => point.current_value);
   const previous = chartPayload.points.map((point) => point.previous_value);
@@ -2576,22 +3110,33 @@ function renderSecondaryPlot(
             colors: [theme.current, theme.previous, theme.positive, "#9b8cf3"],
           },
           sort: false,
-          textinfo: "label+percent",
+          textinfo: density.compact ? "percent" : "label+percent",
           hovertemplate: `<b>%{label}</b><br>Revenue Share: %{percent}<br>Current Revenue: %{customdata[0]:${valueFormat}}${valueSuffix}<br>Previous Revenue: %{customdata[1]:${valueFormat}}${valueSuffix}<br>Delta: %{customdata[2]:+.2f}%<extra></extra>`,
         },
       ],
       {
         paper_bgcolor: "rgba(0,0,0,0)",
         plot_bgcolor: theme.plotBg,
-        margin: { l: 24, r: 24, t: 24, b: 24 },
-        legend: {
-          orientation: "h",
-          x: 0.5,
-          y: 1.12,
-          xanchor: "center",
-          yanchor: "top",
-          font: { color: theme.text },
-        },
+        margin: density.compact
+          ? { l: 10, r: 10, t: 18, b: 58 }
+          : { l: 24, r: 24, t: 24, b: 24 },
+        legend: density.compact
+          ? {
+              orientation: "h",
+              x: 0,
+              y: -0.1,
+              xanchor: "left",
+              yanchor: "top",
+              font: { color: theme.text, size: density.tight ? 10 : 11 },
+            }
+          : {
+              orientation: "h",
+              x: 0.5,
+              y: 1.12,
+              xanchor: "center",
+              yanchor: "top",
+              font: { color: theme.text },
+            },
       },
       { responsive: true, displaylogo: false },
     );
@@ -2626,26 +3171,40 @@ function renderSecondaryPlot(
         xTitle: chartPayload.x_title,
         yTitle: chartPayload.y_title,
         metricFormat: chartPayload.metric_format,
+        plotEl,
+        showLegend: !density.compact,
         extra: {
-          margin: { l: 86, r: 78, t: 24, b: 92 },
+          margin: density.compact
+            ? {
+                l: density.tight ? 54 : 64,
+                r: density.tight ? 44 : 52,
+                t: 14,
+                b: density.tight ? 118 : 132,
+              }
+            : { l: 86, r: 78, t: 24, b: 92 },
           xaxis: {
-            title: { text: chartPayload.x_title, standoff: 12 },
+            title: {
+              text: density.tight ? "" : chartPayload.x_title,
+              standoff: 12,
+            },
             color: theme.text,
-            tickangle: -24,
+            tickangle: density.tight ? -34 : density.compact ? -28 : -24,
             automargin: true,
-            tickfont: { size: 11 },
+            tickfont: { size: density.tight ? 10 : 11 },
             gridcolor: theme.grid,
           },
           yaxis2: {
             title: {
-              text: chartPayload.cumulative_y_title || "Cumulative Share",
+              text: density.tight
+                ? ""
+                : chartPayload.cumulative_y_title || "Cumulative Share",
               standoff: 12,
             },
             overlaying: "y",
             side: "right",
             range: [0, 100],
             color: theme.accent,
-            tickfont: { size: 11 },
+            tickfont: { size: density.tight ? 10 : 11 },
             tickformat: ".0f",
             ticksuffix: "%",
             zeroline: false,
@@ -2717,18 +3276,31 @@ function renderSecondaryPlot(
         xTitle: chartPayload.x_title,
         yTitle: chartPayload.y_title,
         metricFormat: chartPayload.metric_format,
+        plotEl,
+        showLegend: !density.compact,
         extra: {
+          margin: density.compact
+            ? {
+                l: density.tight ? 54 : 64,
+                r: 18,
+                t: 16,
+                b: density.tight ? 110 : 122,
+              }
+            : undefined,
           barmode:
             chartPayload.current_trace_style === "bar" &&
             chartPayload.previous_trace_style === "bar"
               ? "group"
               : undefined,
           xaxis: {
-            title: { text: chartPayload.x_title, standoff: 12 },
+            title: {
+              text: density.tight ? "" : chartPayload.x_title,
+              standoff: 12,
+            },
             color: theme.text,
-            tickangle: -24,
+            tickangle: density.tight ? -34 : density.compact ? -28 : -24,
             automargin: true,
-            tickfont: { size: 11 },
+            tickfont: { size: density.tight ? 10 : 11 },
             gridcolor: theme.grid,
           },
         },
@@ -2775,7 +3347,11 @@ async function loadDetailPanel(
   detailPanel.panel.classList.remove("hidden");
   detailPanel.title.textContent = "Loading detail...";
   detailPanel.subtitle.textContent = "";
-  detailPanel.table.innerHTML = `<div class="lab-empty">Loading detail...</div>`;
+  detailPanel.table.innerHTML = renderStateCard({
+    title: "Loading detail",
+    message: "Pulling the records for this selection.",
+    stateType: "loading",
+  });
   if (detailPanel.spotlightButton)
     detailPanel.spotlightButton.classList.add("hidden");
   detailPanel.panel.dataset.interactionKey = interactionKey;
@@ -2835,7 +3411,11 @@ async function loadDetailPanel(
   } catch (error) {
     detailPanel.title.textContent = "Failed to load detail";
     detailPanel.subtitle.textContent = "";
-    detailPanel.table.innerHTML = `<div class="lab-empty">${escapeHtml(error.message)}</div>`;
+    detailPanel.table.innerHTML = renderStateCard({
+      title: "Detail unavailable",
+      message: error.message,
+      stateType: "error",
+    });
     if (detailPanel.exportButton)
       detailPanel.exportButton.classList.add("hidden");
   }
@@ -2846,7 +3426,11 @@ function renderWindowError(win, title, message) {
   if (statusEl) statusEl.textContent = message;
   const contentEl = win.querySelector(".window-content");
   if (!contentEl) return;
-  contentEl.innerHTML = `<div class="lab-shell"><div class="lab-empty"><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p></div></div></div>`;
+  contentEl.innerHTML = `<div class="lab-shell">${renderStateCard({
+    title,
+    message,
+    stateType: "error",
+  })}</div>`;
 }
 
 function windowRefs(win) {
@@ -2980,7 +3564,7 @@ function buildSpotlightWindowMarkup(config) {
     ? page.iconClass.replace("icon-art--", "task-mark--")
     : "task-mark--spotlight";
   return `
-    <article class="window" data-window-id="${escapeHtml(config.id)}" data-page-key="${escapeHtml(config.pageKey)}" data-window-kind="spotlight" data-min-w="520" data-min-h="360" data-w="960" data-h="720">
+    <article class="window" data-window-id="${escapeHtml(config.id)}" data-page-key="${escapeHtml(config.pageKey)}" data-window-kind="spotlight" data-min-w="720" data-min-h="500" data-w="960" data-h="720">
       <div class="titlebar">
         <div class="title-meta">
           <span class="task-mark title-mark ${escapeHtml(iconClass)}" aria-hidden="true"></span>
@@ -3404,6 +3988,7 @@ function openSpotlight(config) {
       ...spotlightConfig,
       id: `spotlight-${++state.spotlightCounter}`,
     };
+  markOnboardingStep("spotlightUsed");
   state.spotlights.set(spotlightConfig.id, spotlightConfig);
   trackRecent({
     kind: "spotlight",
@@ -3657,14 +4242,21 @@ function scheduleRefresh() {
   window.clearTimeout(state.refreshTimer);
   state.refreshTimer = window.setTimeout(() => {
     savePreferences();
+    syncShellStatusText();
     refreshOpenWindows(true);
   }, 140);
 }
 
 function buildWindowMarkup(page) {
   const taskIcon = page.iconClass.replace("icon-art--", "task-mark--");
+  const minWindow =
+    page.key === "predictive"
+      ? { width: 760, height: 520 }
+      : page.key === "retention"
+        ? { width: 740, height: 500 }
+        : { width: 680, height: 460 };
   return `
-    <article class="window" data-window-id="${escapeHtml(page.key)}" data-page-key="${escapeHtml(page.key)}" data-window-kind="page" data-x="${page.rect.x}" data-y="${page.rect.y}" data-w="${page.rect.w}" data-h="${page.rect.h}" data-min-w="640" data-min-h="420">
+    <article class="window" data-window-id="${escapeHtml(page.key)}" data-page-key="${escapeHtml(page.key)}" data-window-kind="page" data-x="${page.rect.x}" data-y="${page.rect.y}" data-w="${page.rect.w}" data-h="${page.rect.h}" data-min-w="${minWindow.width}" data-min-h="${minWindow.height}">
       <div class="titlebar">
         <div class="title-meta">
           <span class="task-mark title-mark ${escapeHtml(taskIcon)}" aria-hidden="true"></span>
@@ -3882,7 +4474,14 @@ function syncGranularityPills() {
 
 function bindTopControls() {
   elements.desktopToggle.addEventListener("click", toggleDesktopWorkspace);
+  elements.openGuide?.addEventListener("click", openGuidePanel);
+  elements.workspaceMenuToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isOpen = !elements.workspaceMenu?.classList.contains("hidden");
+    setWorkspaceMenu(!isOpen);
+  });
   elements.saveBookmark?.addEventListener("click", () => {
+    setWorkspaceMenu(false);
     const name =
       window.prompt("Bookmark name", `Workspace ${formatStamp(isoNow())}`) ||
       "";
@@ -3891,9 +4490,30 @@ function bindTopControls() {
     persistBookmarks();
     openBookmarksWindow();
   });
-  elements.openRecent?.addEventListener("click", openRecentWindow);
-  elements.openBookmarks?.addEventListener("click", openBookmarksWindow);
-  elements.openActions?.addEventListener("click", openActionBoardWindow);
+  elements.openRecent?.addEventListener("click", () => {
+    setWorkspaceMenu(false);
+    openRecentWindow();
+  });
+  elements.openBookmarks?.addEventListener("click", () => {
+    setWorkspaceMenu(false);
+    openBookmarksWindow();
+  });
+  elements.openActions?.addEventListener("click", () => {
+    setWorkspaceMenu(false);
+    openActionBoardWindow();
+  });
+  document.addEventListener("click", (event) => {
+    if (!elements.workspaceMenu || !elements.workspaceMenuToggle) return;
+    if (elements.workspaceMenu.classList.contains("hidden")) return;
+    const target = event.target;
+    if (
+      target instanceof Node &&
+      !elements.workspaceMenu.contains(target) &&
+      !elements.workspaceMenuToggle.contains(target)
+    ) {
+      setWorkspaceMenu(false);
+    }
+  });
   elements.granularityPills
     .querySelectorAll("[data-granularity]")
     .forEach((button) => {
@@ -3907,6 +4527,16 @@ function bindTopControls() {
     state.filters.scenarioMode = elements.scenario.value;
     scheduleRefresh();
   });
+  elements.category?.addEventListener("change", () => {
+    state.filters.categories = elements.category.value
+      ? [elements.category.value]
+      : [];
+    scheduleRefresh();
+  });
+  elements.city?.addEventListener("change", () => {
+    state.filters.cities = elements.city.value ? [elements.city.value] : [];
+    scheduleRefresh();
+  });
   elements.windowTheme.addEventListener("change", () =>
     applyWindowTheme(elements.windowTheme.value),
   );
@@ -3916,26 +4546,34 @@ async function loadMeta() {
   const response = await fetch("/api/meta/filters");
   if (!response.ok) throw new Error(`Metadata failed (${response.status})`);
   state.meta = await response.json();
+  hydrateFilterSelect(
+    elements.category,
+    state.meta.categories || [],
+    "All categories",
+  );
+  hydrateFilterSelect(elements.city, state.meta.cities || [], "All cities");
   state.filters.startDate =
     state.filters.startDate || state.meta.default_start_date;
   state.filters.endDate = state.filters.endDate || state.meta.default_end_date;
+  normalizeTopbarSelections();
   elements.startDate.value = displayDate(state.filters.startDate);
   elements.endDate.value = displayDate(state.filters.endDate);
+  syncGlobalFilterSelects();
   elements.scenario.value = state.filters.scenarioMode || "Base";
   syncGranularityPills();
-  elements.status.textContent = `${state.meta.data_engine} | shared filters refresh open windows`;
-  elements.taskbarMessage.textContent =
-    "Open a page from the desktop icons. Shared filters update any open windows.";
+  syncShellStatusText();
 }
 
 async function init() {
   loadPreferences();
+  loadOnboardingState();
   const preset = applyQueryPreset();
   loadWorkspaceCollections();
   elements.desktop.dataset.windowTheme = state.windowTheme;
   if (elements.windowTheme) elements.windowTheme.value = state.windowTheme;
   if (elements.scenario) elements.scenario.value = state.filters.scenarioMode;
   renderDesktop();
+  renderOnboarding();
   bindPointerInteractions();
   bindTopControls();
   try {
@@ -3948,15 +4586,23 @@ async function init() {
   }
   bindDatePickers();
   applyWindowTheme(state.windowTheme);
-  if (elements.startDate) elements.startDate.value = displayDate(state.filters.startDate);
-  if (elements.endDate) elements.endDate.value = displayDate(state.filters.endDate);
+  if (elements.startDate)
+    elements.startDate.value = displayDate(state.filters.startDate);
+  if (elements.endDate)
+    elements.endDate.value = displayDate(state.filters.endDate);
+  syncGlobalFilterSelects();
   syncGranularityPills();
+  syncShellStatusText();
+  renderOnboarding();
   if (preset.openPages.length) {
     window.setTimeout(() => {
       preset.openPages.forEach((pageKey) => openWindow(pageKey));
       if (preset.maximizePage) {
-        const target = document.querySelector(`.window[data-window-id="${preset.maximizePage}"]`);
-        if (target && !target.classList.contains("is-maximized")) toggleMaximize(target);
+        const target = document.querySelector(
+          `.window[data-window-id="${preset.maximizePage}"]`,
+        );
+        if (target && !target.classList.contains("is-maximized"))
+          toggleMaximize(target);
       }
     }, 240);
   }

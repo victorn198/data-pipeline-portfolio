@@ -5,9 +5,9 @@ Granularity: 1 row per order_id (assuming stg_orders has unique order_id)
 
 {{ config(
     materialized='incremental',
-    incremental_strategy='merge',
+    incremental_strategy='delete+insert',
     unique_key='sales_key',
-    schema='MARTS',
+    schema='marts',
     tags=['marts', 'daily']
 ) }}
 
@@ -68,3 +68,4 @@ where order_date >= (select coalesce(max(order_date), '1900-01-01'::date) from {
 {% endif %}
 */
 -- Incremental logic removed to ensure full refresh. The is_incremental() macro was not working as expected.
+

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 import nextgen_dashboard.backend.main as main_module
 from nextgen_dashboard.backend.dashboard_service import DashboardService
+from nextgen_dashboard.backend.dashboard_audit import run_dashboard_audit
 from nextgen_dashboard.backend.proposal_applier import ProposalApplier
 from nextgen_dashboard.backend.proposal_engine import ProposalEngine
 from nextgen_dashboard.backend.proposal_previewer import ProposalPreviewer
@@ -487,3 +488,13 @@ def test_predictive_category_drilldown_responds() -> None:
     assert payload["table"]["rows"] is not None
     assert "share_shift" in payload["table"]["rows"][0]["values"]
 
+
+
+def test_dashboard_metric_audit_passes_default_and_slice_contexts() -> None:
+    results = run_dashboard_audit()
+    assert results["summary"]["contexts_audited"] >= 6
+    assert results["summary"]["total_checks"] > 0
+    assert results["summary"]["failed_checks"] == []
+
+    context_names = {context["name"] for context in results["contexts"]}
+    assert {"default_month", "top_category_month", "top_city_month", "top_pair_month"}.issubset(context_names)

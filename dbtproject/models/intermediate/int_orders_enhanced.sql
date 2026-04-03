@@ -6,7 +6,7 @@ Business logic: Join orders with customer & product attributes
 {{ config(
     materialized='table',
     tags=['intermediate', 'daily'],
-    schema='INTERMEDIATE'
+    schema='intermediate'
 ) }}
 
 with orders as (
@@ -60,7 +60,7 @@ joined as (
         o.total_amount,
         o.status,
 
-        datediff('day', o.order_date, current_date) as days_since_order,
+        (current_date - o.order_date::date) as days_since_order,
 
         current_timestamp as dbt_loaded_at
     from orders o
@@ -69,3 +69,4 @@ joined as (
 )
 
 select * from joined
+

@@ -6,7 +6,7 @@ Current snapshot (can evolve to SCD2 later)
 {{ config(
     materialized='table',
     tags=['marts', 'daily'],
-    schema='MARTS'
+    schema='marts'
 ) }}
 
 with customers as (
@@ -25,3 +25,4 @@ with customers as (
 )
 
 select * from customers
+

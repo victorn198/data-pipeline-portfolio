@@ -3,7 +3,7 @@ import sys
 import argparse
 from pathlib import Path
 
-import snowflake.connector
+import psycopg2
 from dotenv import load_dotenv
 
 # Ensure local package imports work when running from scripts/ path.
@@ -17,21 +17,22 @@ from fivetran_simulator.extract_products import load_products
 
 
 def _ensure_raw_tables(cur):
+    cur.execute("CREATE SCHEMA IF NOT EXISTS raw")
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS RAW.customers_raw (customer_id STRING, customer_name STRING, email STRING, city STRING, state STRING, created_date TIMESTAMP)"
+        "CREATE TABLE IF NOT EXISTS raw.customers_raw (customer_id TEXT, customer_name TEXT, email TEXT, city TEXT, state TEXT, created_date TIMESTAMP)"
     )
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS RAW.products_raw (product_id STRING, product_name STRING, category STRING, unit_price FLOAT, stock_quantity INT)"
+        "CREATE TABLE IF NOT EXISTS raw.products_raw (product_id TEXT, product_name TEXT, category TEXT, unit_price DOUBLE PRECISION, stock_quantity INTEGER)"
     )
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS RAW.orders_raw (order_id STRING, customer_id STRING, product_id STRING, order_date TIMESTAMP, quantity INT, unit_price FLOAT, total_amount FLOAT, status STRING)"
+        "CREATE TABLE IF NOT EXISTS raw.orders_raw (order_id TEXT, customer_id TEXT, product_id TEXT, order_date TIMESTAMP, quantity INTEGER, unit_price DOUBLE PRECISION, total_amount DOUBLE PRECISION, status TEXT)"
     )
 
 
 def _truncate_raw_tables(cur):
-    cur.execute("TRUNCATE TABLE RAW.orders_raw")
-    cur.execute("TRUNCATE TABLE RAW.products_raw")
-    cur.execute("TRUNCATE TABLE RAW.customers_raw")
+    cur.execute("TRUNCATE TABLE raw.orders_raw")
+    cur.execute("TRUNCATE TABLE raw.products_raw")
+    cur.execute("TRUNCATE TABLE raw.customers_raw")
 
 
 def _resolve_mode(explicit_mode):
@@ -43,13 +44,13 @@ def _resolve_mode(explicit_mode):
 def main():
     """
     Orchestrates RAW load:
-    - Connect to Snowflake
+    - Connect to PostgreSQL
     - Ensure RAW tables exist
     - Optionally truncate RAW tables (full refresh mode)
     - Fetch data from Fake Store API and load into RAW (incremental by default)
     - Verify final counts
     """
-    parser = argparse.ArgumentParser(description="Load Fake Store data into Snowflake RAW")
+    parser = argparse.ArgumentParser(description="Load Fake Store data into PostgreSQL RAW")
     parser.add_argument(
         "--mode",
         choices=["incremental", "full_refresh"],
@@ -65,19 +66,18 @@ def main():
             "Invalid load mode. Use 'incremental' or 'full_refresh' via --mode or PIPELINE_LOAD_MODE."
         )
 
-    print(f"Starting API-based load into Snowflake RAW schema (mode={load_mode})...")
+    print(f"Starting API-based load into PostgreSQL RAW schema (mode={load_mode})...")
 
     conn = None
     try:
-        conn = snowflake.connector.connect(
-            account=os.getenv("SNOWFLAKE_ACCOUNT"),
-            user=os.getenv("SNOWFLAKE_USER"),
-            password=os.getenv("SNOWFLAKE_PASSWORD"),
-            warehouse=os.getenv("SNOWFLAKE_WAREHOUSE"),
-            database=os.getenv("SNOWFLAKE_DATABASE"),
-            schema=os.getenv("SNOWFLAKE_SCHEMA"),
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            dbname=os.getenv("POSTGRES_DB", "analytics"),
+            user=os.getenv("POSTGRES_USER", "postgres"),
+            password=os.getenv("POSTGRES_PASSWORD", "postgres"),
         )
-        print("Snowflake connection successful.")
+        print("PostgreSQL connection successful.")
 
         cur = conn.cursor()
         _ensure_raw_tables(cur)
@@ -101,11 +101,11 @@ def main():
 
         print("Verifying final counts...")
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM RAW.customers_raw")
+        cur.execute("SELECT COUNT(*) FROM raw.customers_raw")
         print(f"Customers: {cur.fetchone()[0]}")
-        cur.execute("SELECT COUNT(*) FROM RAW.products_raw")
+        cur.execute("SELECT COUNT(*) FROM raw.products_raw")
         print(f"Products: {cur.fetchone()[0]}")
-        cur.execute("SELECT COUNT(*) FROM RAW.orders_raw")
+        cur.execute("SELECT COUNT(*) FROM raw.orders_raw")
         print(f"Orders: {cur.fetchone()[0]}")
         cur.close()
 
@@ -117,7 +117,7 @@ def main():
     finally:
         if conn:
             conn.close()
-            print("Snowflake connection closed.")
+            print("PostgreSQL connection closed.")
 
 
 if __name__ == "__main__":

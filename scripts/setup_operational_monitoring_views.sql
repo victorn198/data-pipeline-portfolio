@@ -1,96 +1,103 @@
 -- =====================================================================
 -- Script: setup_operational_monitoring_views.sql
--- Description: Creates monitoring views for an operational Power BI dashboard.
+-- Description: Creates monitoring views for an operational Power BI dashboard
+--              in PostgreSQL.
 -- =====================================================================
 
-USE DATABASE ANALYTICS;
+CREATE SCHEMA IF NOT EXISTS monitoring;
 
-CREATE SCHEMA IF NOT EXISTS MONITORING
-  COMMENT = 'Operational monitoring views for pipeline observability';
-
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_RAW_TABLE_COUNTS AS
-SELECT 'RAW.CUSTOMERS_RAW' AS table_name, COUNT(*) AS record_count FROM ANALYTICS.RAW.CUSTOMERS_RAW
+CREATE OR REPLACE VIEW monitoring.vw_raw_table_counts AS
+SELECT 'raw.customers_raw' AS table_name, COUNT(*) AS record_count FROM raw.customers_raw
 UNION ALL
-SELECT 'RAW.PRODUCTS_RAW' AS table_name, COUNT(*) AS record_count FROM ANALYTICS.RAW.PRODUCTS_RAW
+SELECT 'raw.products_raw' AS table_name, COUNT(*) AS record_count FROM raw.products_raw
 UNION ALL
-SELECT 'RAW.ORDERS_RAW' AS table_name, COUNT(*) AS record_count FROM ANALYTICS.RAW.ORDERS_RAW;
+SELECT 'raw.orders_raw' AS table_name, COUNT(*) AS record_count FROM raw.orders_raw;
 
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_SCD2_SNAPSHOT_STATUS AS
+CREATE OR REPLACE VIEW monitoring.vw_scd2_snapshot_status AS
 SELECT
-  (SELECT COUNT(*) FROM ANALYTICS.SNAPSHOTS.CUSTOMERS_SCD2) AS scd2_total_rows,
-  (SELECT COUNT(*) FROM ANALYTICS.SNAPSHOTS.VW_CUSTOMERS_SCD2_CURRENT) AS scd2_current_rows,
-  (SELECT COUNT(*) FROM ANALYTICS.SNAPSHOTS.VW_CUSTOMERS_SCD2_HISTORY WHERE SNAPSHOT_STATE = 'historical') AS scd2_historical_rows,
-  CURRENT_TIMESTAMP() AS measured_at;
+  (SELECT COUNT(*) FROM snapshots.customers_snapshot) AS scd2_total_rows,
+  (SELECT COUNT(*) FROM snapshots.customers_snapshot WHERE dbt_valid_to IS NULL) AS scd2_current_rows,
+  (SELECT COUNT(*) FROM snapshots.customers_snapshot WHERE dbt_valid_to IS NOT NULL) AS scd2_historical_rows,
+  CURRENT_TIMESTAMP AS measured_at;
 
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_DATA_QUALITY_LATEST AS
+CREATE OR REPLACE VIEW monitoring.vw_data_quality_latest AS
 SELECT
-  RULE_NAME,
-  TARGET_OBJECT,
-  STATUS,
-  ERROR_COUNT,
-  SEVERITY,
-  CHECKED_AT,
-  RUN_ID
-FROM ANALYTICS.DATA_QUALITY.VW_DATA_QUALITY_AUDIT_LATEST;
+  rule_name,
+  target_object,
+  status,
+  error_count,
+  severity,
+  checked_at,
+  run_id
+FROM data_quality.vw_data_quality_audit_latest;
 
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_DATA_QUALITY_RUNS AS
+CREATE OR REPLACE VIEW monitoring.vw_data_quality_runs AS
 SELECT
-  RUN_ID,
-  MIN(CHECKED_AT) AS run_started_at,
-  MAX(CHECKED_AT) AS run_finished_at,
-  SUM(IFF(STATUS = 'FAIL', 1, 0)) AS failed_rules_total,
-  SUM(IFF(STATUS = 'FAIL' AND SEVERITY = 'ERROR', 1, 0)) AS failed_error_rules,
-  SUM(IFF(STATUS = 'FAIL' AND SEVERITY = 'WARN', 1, 0)) AS failed_warn_rules,
+  run_id,
+  MIN(checked_at) AS run_started_at,
+  MAX(checked_at) AS run_finished_at,
+  SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) AS failed_rules_total,
+  SUM(CASE WHEN status = 'FAIL' AND severity = 'ERROR' THEN 1 ELSE 0 END) AS failed_error_rules,
+  SUM(CASE WHEN status = 'FAIL' AND severity = 'WARN' THEN 1 ELSE 0 END) AS failed_warn_rules,
   COUNT(*) AS rules_checked
-FROM ANALYTICS.DATA_QUALITY.DATA_QUALITY_AUDIT
-GROUP BY RUN_ID;
+FROM data_quality.data_quality_audit
+GROUP BY run_id;
 
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_OPEN_DATA_QUALITY_ALERTS AS
+CREATE OR REPLACE VIEW monitoring.vw_open_data_quality_alerts AS
 SELECT
-  ALERT_ID,
-  RUN_ID,
-  ALERT_CREATED_AT,
-  ALERT_STATUS,
-  FAILED_ERROR_RULES,
-  ALERT_MESSAGE,
-  FAILED_RULES
-FROM ANALYTICS.DATA_QUALITY.VW_OPEN_DATA_QUALITY_ALERTS;
+  alert_id,
+  run_id,
+  alert_created_at,
+  alert_status,
+  failed_error_rules,
+  alert_message,
+  failed_rules
+FROM data_quality.vw_open_data_quality_alerts;
 
-CREATE OR REPLACE VIEW ANALYTICS.MONITORING.VW_PIPELINE_OPERATIONAL_KPIS AS
+CREATE OR REPLACE VIEW monitoring.vw_pipeline_operational_kpis AS
 WITH raw_counts AS (
   SELECT
-    MAX(IFF(table_name = 'RAW.CUSTOMERS_RAW', record_count, NULL)) AS raw_customers,
-    MAX(IFF(table_name = 'RAW.PRODUCTS_RAW', record_count, NULL)) AS raw_products,
-    MAX(IFF(table_name = 'RAW.ORDERS_RAW', record_count, NULL)) AS raw_orders
-  FROM ANALYTICS.MONITORING.VW_RAW_TABLE_COUNTS
+    MAX(CASE WHEN table_name = 'raw.customers_raw' THEN record_count ELSE NULL END) AS raw_customers,
+    MAX(CASE WHEN table_name = 'raw.products_raw' THEN record_count ELSE NULL END) AS raw_products,
+    MAX(CASE WHEN table_name = 'raw.orders_raw' THEN record_count ELSE NULL END) AS raw_orders
+  FROM monitoring.vw_raw_table_counts
 ),
 latest_run AS (
   SELECT
-    RUN_ID,
+    run_id,
     run_finished_at,
     failed_rules_total,
     failed_error_rules,
     failed_warn_rules
-  FROM ANALYTICS.MONITORING.VW_DATA_QUALITY_RUNS
-  QUALIFY ROW_NUMBER() OVER (ORDER BY run_finished_at DESC, RUN_ID DESC) = 1
+  FROM (
+    SELECT
+      run_id,
+      run_finished_at,
+      failed_rules_total,
+      failed_error_rules,
+      failed_warn_rules,
+      ROW_NUMBER() OVER (ORDER BY run_finished_at DESC, run_id DESC) AS rn
+    FROM monitoring.vw_data_quality_runs
+  ) d
+  WHERE rn = 1
 ),
 open_alerts AS (
   SELECT COUNT(*) AS open_alerts_count
-  FROM ANALYTICS.MONITORING.VW_OPEN_DATA_QUALITY_ALERTS
+  FROM monitoring.vw_open_data_quality_alerts
 ),
 scd2 AS (
   SELECT scd2_total_rows, scd2_current_rows, scd2_historical_rows
-  FROM ANALYTICS.MONITORING.VW_SCD2_SNAPSHOT_STATUS
+  FROM monitoring.vw_scd2_snapshot_status
 )
 SELECT
-  CURRENT_TIMESTAMP() AS measured_at,
+  CURRENT_TIMESTAMP AS measured_at,
   r.raw_customers,
   r.raw_products,
   r.raw_orders,
   s.scd2_total_rows,
   s.scd2_current_rows,
   s.scd2_historical_rows,
-  lr.RUN_ID AS latest_dq_run_id,
+  lr.run_id AS latest_dq_run_id,
   lr.run_finished_at AS latest_dq_run_finished_at,
   COALESCE(lr.failed_rules_total, 0) AS latest_dq_failed_rules_total,
   COALESCE(lr.failed_error_rules, 0) AS latest_dq_failed_error_rules,
@@ -101,4 +108,4 @@ CROSS JOIN scd2 s
 LEFT JOIN latest_run lr ON TRUE
 CROSS JOIN open_alerts oa;
 
-SELECT 'Operational monitoring views setup complete.' AS status;
+SELECT 'PostgreSQL operational monitoring views setup complete.' AS status;
