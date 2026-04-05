@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -1643,19 +1643,21 @@ class DashboardService:
         )
         city_map = _group_metric_map(current_df, "city", _orders_count)
         city_rank = sorted(city_map, key=lambda key: city_map.get(key, 0.0), reverse=True)[:8]
+        detail_rows = []
+        for city in city_rank:
+            city_df = current_df[current_df["city"] == city]
+            detail_rows.append({
+                "city": city,
+                "orders": fmt_number(_orders_count(city_df)),
+                "records": fmt_number(_records_count(city_df)),
+                "lines": fmt_decimal(_avg_lines_per_order(city_df)),
+                "success": fmt_pct(_non_cancelled_rate(city_df)),
+            })
+
         detail_table = _table_payload(
             title="Operational Detail by City",
             columns=[("city", "City"), ("orders", "Orders"), ("records", "Records"), ("lines", "Avg Lines / Order"), ("success", "Non-Cancelled Rate")],
-            rows=[
-                {
-                    "city": city,
-                    "orders": fmt_number(_orders_count(current_df[current_df["city"] == city])),
-                    "records": fmt_number(_records_count(current_df[current_df["city"] == city])),
-                    "lines": fmt_decimal(_avg_lines_per_order(current_df[current_df["city"] == city])),
-                    "success": fmt_pct(_non_cancelled_rate(current_df[current_df["city"] == city])),
-                }
-                for city in city_rank
-            ],
+            rows=detail_rows,
         )
         summary = [
             f"Orders Count is {cards[0].formatted_value} and row intensity is {cards[2].formatted_value} lines per order, which helps separate throughput from processing complexity.",
