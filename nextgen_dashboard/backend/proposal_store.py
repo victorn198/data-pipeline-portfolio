@@ -177,9 +177,27 @@ class ProposalStore:
     def _write_proposals(self, proposals: list[dict]) -> None:
         self._atomic_write_json(self.proposals_path, proposals)
 
+    MAX_AUDIT_EVENTS = 10_000
+
     def _append_audit_event(self, event: dict) -> None:
-        with self.audit_log_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+        with self._lock:
+            with self.audit_log_path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+            self._rotate_audit_log_if_needed()
+
+    def _rotate_audit_log_if_needed(self) -> None:
+        if not self.audit_log_path.exists():
+            return
+        with self.audit_log_path.open("r", encoding="utf-8") as handle:
+            lines = handle.readlines()
+        if len(lines) <= self.MAX_AUDIT_EVENTS:
+            return
+        # Keep most recent half
+        keep = lines[len(lines) // 2:]
+        temp_path = self.audit_log_path.with_suffix(".jsonl.tmp")
+        with temp_path.open("w", encoding="utf-8") as handle:
+            handle.writelines(keep)
+        temp_path.replace(self.audit_log_path)
 
     def _atomic_write_json(self, path: Path, payload: dict | list[dict]) -> None:
         temp_path = path.with_suffix(path.suffix + ".tmp")

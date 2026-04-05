@@ -1,16 +1,39 @@
+import logging
 import os
 import re
 from typing import Any
 
 import psycopg2
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from psycopg2.extras import RealDictCursor
 
 load_dotenv()
 
+logger = logging.getLogger("mcp_tools.security")
+
+MCP_TOKEN = os.getenv("MCP_API_TOKEN", "").strip()
+MCP_STATEMENT_TIMEOUT_MS = int(os.getenv("MCP_STATEMENT_TIMEOUT_MS", "10000"))
+MCP_ROW_LIMIT = int(os.getenv("MCP_ROW_LIMIT", "5000"))
+
 app = FastAPI(title="PostgreSQL Query API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        o.strip()
+        for o in os.getenv(
+            "MCP_ALLOWED_ORIGINS",
+            "http://127.0.0.1:8601,http://localhost:8601",
+        ).split(",")
+        if o.strip()
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 
 READ_ONLY_START_KEYWORDS = {"select", "with"}
 MUTATING_SQL_KEYWORDS = {
@@ -147,19 +170,41 @@ def is_read_only_query(sql: str) -> bool:
     return not any(token in MUTATING_SQL_KEYWORDS for token in tokens[1:])
 
 
+def _require_mcp_auth(request: Request) -> None:
+    """Reject requests when MCP_API_TOKEN is set and the caller does not provide it."""
+    if not MCP_TOKEN:
+        return  # auth disabled (local dev without token)
+    auth_header = request.headers.get("authorization", "")
+    provided = auth_header.removeprefix("Bearer ").strip()
+    if not provided or provided != MCP_TOKEN:
+        logger.warning("MCP auth rejected from %s", request.client.host if request.client else "unknown")
+        raise HTTPException(status_code=403, detail="Invalid or missing MCP API token.")
+
+
 @app.post("/execute_sql")
-def execute_sql_endpoint(query: SQLQuery) -> dict[str, Any]:
+def execute_sql_endpoint(query: SQLQuery, request: Request) -> dict[str, Any]:
+    _require_mcp_auth(request)
+
     if not is_read_only_query(query.sql):
+        logger.warning("Blocked non-read-only query: %.120s", query.sql)
         raise HTTPException(status_code=400, detail="Only read-only queries (SELECT/CTE) are allowed.")
 
     conn = get_postgres_connection()
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Enforce read-only at the database level (defense in depth)
+            cur.execute("SET TRANSACTION READ ONLY")
+            cur.execute(f"SET statement_timeout = {MCP_STATEMENT_TIMEOUT_MS}")
             cur.execute(query.sql)
-            rows = cur.fetchall()
+            rows = cur.fetchmany(MCP_ROW_LIMIT)
             return {"status": "success", "row_count": len(rows), "data": rows}
+    except psycopg2.errors.ReadOnlySqlTransaction:
+        raise HTTPException(status_code=400, detail="Only read-only queries are allowed.")
+    except psycopg2.errors.QueryCanceled:
+        raise HTTPException(status_code=408, detail="Query exceeded time limit.")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"SQL execution error: {exc}") from exc
+        logger.exception("SQL execution error")
+        raise HTTPException(status_code=500, detail="Internal query execution error.") from exc
     finally:
         conn.close()
 

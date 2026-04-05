@@ -1,5 +1,7 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import logging
+import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
 from datetime import date
@@ -52,6 +54,8 @@ PUBLIC_ASSETS = {
     "app.js": FRONTEND_DIR / "app.js",
 }
 
+logger = logging.getLogger("nextgen_dashboard.security")
+
 
 def _allowed_origins() -> list[str]:
     raw_value = os.getenv(
@@ -68,6 +72,7 @@ def _agent_mutations_enabled() -> bool:
 
 def _require_agent_mutation_access(request: Request) -> None:
     if not _agent_mutations_enabled():
+        logger.warning("Agent mutation rejected (disabled): %s", request.client.host if request.client else "unknown")
         raise HTTPException(
             status_code=403,
             detail="Agent mutations are disabled in demo mode.",
@@ -80,6 +85,7 @@ def _require_agent_mutation_access(request: Request) -> None:
         )
     provided_token = request.headers.get("x-nextgen-agent-token", "").strip()
     if not provided_token or not hmac.compare_digest(provided_token, expected_token):
+        logger.warning("Agent mutation rejected (bad token): %s", request.client.host if request.client else "unknown")
         raise HTTPException(status_code=403, detail="Invalid agent token.")
 
 
@@ -105,6 +111,31 @@ app.add_middleware(
 )
 
 
+# ---------------------------------------------------------------------------
+# Simple in-memory rate limiter (no external dependency)
+# ---------------------------------------------------------------------------
+_rate_limit_window: dict[str, list[float]] = {}
+_RATE_LIMIT_MAX = int(os.getenv("NEXTGEN_RATE_LIMIT_MAX", "120"))  # requests per window
+_RATE_LIMIT_WINDOW_SECONDS = 60
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    hits = _rate_limit_window.setdefault(client_ip, [])
+    # Purge old entries
+    cutoff = now - _RATE_LIMIT_WINDOW_SECONDS
+    _rate_limit_window[client_ip] = [t for t in hits if t > cutoff]
+    hits = _rate_limit_window[client_ip]
+    if len(hits) >= _RATE_LIMIT_MAX:
+        logger.warning("Rate limit exceeded for %s", client_ip)
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=429, content={"detail": "Too many requests. Try again later."})
+    hits.append(now)
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -112,6 +143,11 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';",
+    )
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     return response
 
 
@@ -133,10 +169,11 @@ proposal_previewer = ProposalPreviewer(
     proposal_store=proposal_store,
     semantic_layer=semantic_layer,
 )
-dashboard_response_cache: OrderedDict[tuple, DashboardPayload] = OrderedDict()
-detail_response_cache: OrderedDict[tuple, DrilldownDetailPayload] = OrderedDict()
+dashboard_response_cache: OrderedDict[tuple, tuple[float, DashboardPayload]] = OrderedDict()
+detail_response_cache: OrderedDict[tuple, tuple[float, DrilldownDetailPayload]] = OrderedDict()
 DASHBOARD_CACHE_LIMIT = 48
 DETAIL_CACHE_LIMIT = 96
+CACHE_TTL_SECONDS = int(os.getenv("NEXTGEN_CACHE_TTL_SECONDS", "300"))
 
 
 def _dashboard_cache_key(
@@ -162,15 +199,19 @@ def _dashboard_cache_key(
 
 
 def _read_dashboard_cache(key: tuple) -> DashboardPayload | None:
-    cached = dashboard_response_cache.get(key)
-    if cached is None:
+    entry = dashboard_response_cache.get(key)
+    if entry is None:
+        return None
+    ts, cached = entry
+    if time.monotonic() - ts > CACHE_TTL_SECONDS:
+        dashboard_response_cache.pop(key, None)
         return None
     dashboard_response_cache.move_to_end(key)
     return cached.model_copy(deep=True)
 
 
 def _write_dashboard_cache(key: tuple, payload: DashboardPayload) -> None:
-    dashboard_response_cache[key] = payload.model_copy(deep=True)
+    dashboard_response_cache[key] = (time.monotonic(), payload.model_copy(deep=True))
     dashboard_response_cache.move_to_end(key)
     while len(dashboard_response_cache) > DASHBOARD_CACHE_LIMIT:
         dashboard_response_cache.popitem(last=False)
@@ -182,15 +223,19 @@ def _clear_dashboard_cache() -> None:
 
 
 def _read_detail_cache(key: tuple) -> DrilldownDetailPayload | None:
-    cached = detail_response_cache.get(key)
-    if cached is None:
+    entry = detail_response_cache.get(key)
+    if entry is None:
+        return None
+    ts, cached = entry
+    if time.monotonic() - ts > CACHE_TTL_SECONDS:
+        detail_response_cache.pop(key, None)
         return None
     detail_response_cache.move_to_end(key)
     return cached.model_copy(deep=True)
 
 
 def _write_detail_cache(key: tuple, payload: DrilldownDetailPayload) -> None:
-    detail_response_cache[key] = payload.model_copy(deep=True)
+    detail_response_cache[key] = (time.monotonic(), payload.model_copy(deep=True))
     detail_response_cache.move_to_end(key)
     while len(detail_response_cache) > DETAIL_CACHE_LIMIT:
         detail_response_cache.popitem(last=False)

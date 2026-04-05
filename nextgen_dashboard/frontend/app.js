@@ -1,4 +1,11 @@
-﻿const PAGES = [
+/* --- Security: escape untrusted strings before innerHTML insertion --- */
+function escapeHTML(str) {
+  if (str == null) return "";
+  const s = String(str);
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+const PAGES = [
   {
     key: "sales",
     label: "Sales Overview",
