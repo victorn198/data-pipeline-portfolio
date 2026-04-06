@@ -91,7 +91,8 @@ docker compose up -d
 cp .env.example .env
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+python -m pip install --upgrade pip setuptools
+pip install -r requirements.txt -c constraints.txt
 python scripts/loadsampledata.py --mode full_refresh
 cd dbtproject
 dbt deps
@@ -107,6 +108,8 @@ Open `http://127.0.0.1:8601`
 ## Quality and Security
 
 ```bash
+python -m pip install --upgrade pip setuptools
+pip install -r requirements.txt -c constraints.txt
 pytest tests/test_nextgen_dashboard_api.py
 python scripts/benchmark_dashboard.py --threshold-seconds 1.50
 ```
