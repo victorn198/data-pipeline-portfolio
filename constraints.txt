@@ -1,0 +1,9 @@
+# Security constraints for transitive dependencies.
+#
+# Install with:
+#   pip install -r requirements.txt -c constraints.txt
+#
+# Keep this file narrow. Only pin transitive dependencies that are actually
+# required to keep the project environment reproducible and audit-clean.
+
+deepdiff==8.6.2
