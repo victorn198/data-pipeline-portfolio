@@ -1,8 +1,14 @@
-﻿.vscode/
+.vscode/
 .idea/
 venv/
+.venv/
 __pycache__/
 *.pyc
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 # dbt
 dbt_packages/
@@ -10,6 +16,8 @@ logs/
 target/
 dbtproject/profiles.yml
 dbtproject/*.log
+dbtproject/.user.yml
+dbtproject/=
 
 # Env
 .env*
@@ -31,6 +39,8 @@ nextgen_dashboard/agent_data/
 .pytest_cache/
 nextgen_dashboard_uvicorn*.log
 uvicorn_nextgen.log
+*.tmp
+*.bak
 
 # Local design extraction and prompt scratchpad
 assets/design_refs/
