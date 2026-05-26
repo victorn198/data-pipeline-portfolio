@@ -29,6 +29,42 @@ sources:
           - name: PRODUCT_ID
             tests: [not_null]
 
+      - name: MARKETING_CAMPAIGNS
+        identifier: marketing_campaigns_raw
+        description: Registered CSV source landed in raw with load metadata.
+        columns:
+          - name: campaign_id
+            tests: [not_null]
+          - name: load_batch_id
+            tests: [not_null]
+
+      - name: SUPPORT_TICKETS
+        identifier: support_tickets_raw
+        description: Registered JSON source landed in raw with load metadata.
+        columns:
+          - name: ticket_id
+            tests: [not_null]
+          - name: load_batch_id
+            tests: [not_null]
+
+      - name: CRM_ACCOUNTS
+        identifier: crm_accounts_raw
+        description: Registered paginated CRM-style API source landed in raw with load metadata.
+        columns:
+          - name: account_id
+            tests: [not_null]
+          - name: load_batch_id
+            tests: [not_null]
+
+      - name: BILLING_INVOICES
+        identifier: billing_invoices_raw
+        description: Registered billing invoices API-style source landed in raw with load metadata.
+        columns:
+          - name: invoice_id
+            tests: [not_null]
+          - name: load_batch_id
+            tests: [not_null]
+
 models:
   - name: stg_orders
     description: Standardized orders from RAW. Applies typing/renames and keeps a 1:1 shape with the source.
@@ -65,6 +101,85 @@ models:
       - name: product_id
         description: Business identifier of the product.
         tests: [unique, not_null]
+
+  - name: stg_marketing_campaigns
+    description: Standardized marketing campaigns loaded from the registered CSV source.
+    columns:
+      - name: campaign_id
+        description: Business identifier of the marketing campaign.
+        tests: [unique, not_null]
+      - name: channel
+        description: Campaign acquisition channel.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["paid_search", "email", "paid_social", "display"]
+      - name: spend
+        description: Campaign spend after source cleaning.
+        tests: [not_null]
+      - name: load_batch_id
+        description: Source load batch that produced the row.
+        tests: [not_null]
+
+  - name: stg_support_tickets
+    description: Standardized support tickets loaded from the registered JSON source.
+    columns:
+      - name: ticket_id
+        description: Business identifier of the support ticket.
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Customer attached to the support ticket.
+        tests: [not_null]
+      - name: priority
+        description: Ticket priority from the source system.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["low", "medium", "high"]
+      - name: load_batch_id
+        description: Source load batch that produced the row.
+        tests: [not_null]
+
+  - name: stg_crm_accounts
+    description: Standardized CRM accounts loaded from the registered paginated API source.
+    columns:
+      - name: account_id
+        description: Business identifier of the CRM account.
+        tests: [unique, not_null]
+      - name: lifecycle_stage
+        description: CRM lifecycle stage for the account.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["lead", "opportunity", "customer"]
+      - name: annual_revenue
+        description: CRM account annual revenue proxy after source cleaning.
+        tests: [not_null]
+      - name: load_batch_id
+        description: Source load batch that produced the row.
+        tests: [not_null]
+
+  - name: stg_billing_invoices
+    description: Standardized billing invoices loaded from the registered paginated API source.
+    columns:
+      - name: invoice_id
+        description: Business identifier of the invoice.
+        tests: [unique, not_null]
+      - name: customer_id
+        description: Customer billed on the invoice.
+        tests: [not_null]
+      - name: billing_status
+        description: Current billing status from the source system.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["paid", "open", "paid_late", "past_due", "void"]
+      - name: amount_due
+        description: Amount expected from the customer.
+        tests: [not_null]
+      - name: load_batch_id
+        description: Source load batch that produced the row.
+        tests: [not_null]
 
   - name: dim_customer
     description: Customer dimension (one row per customer).
@@ -110,3 +225,41 @@ models:
               arguments:
                 to: ref('dim_product')
                 field: product_key
+
+  - name: mart_account_health
+    description: Account-level operational mart combining CRM, billing, support, and ecommerce activity.
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "health_score between 0 and 100"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "outstanding_amount <= billed_amount"
+    columns:
+      - name: account_id
+        description: Business identifier of the CRM account.
+        tests: [unique, not_null]
+      - name: account_name
+        description: CRM account name.
+        tests: [not_null]
+      - name: lifecycle_stage
+        description: CRM lifecycle stage used as a context dimension.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["lead", "opportunity", "customer"]
+      - name: health_score
+        description: Operational account health score from billing and support risk signals.
+        tests: [not_null]
+      - name: health_tier
+        description: Account health tier derived from the score.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["healthy", "watch", "risk"]
+      - name: primary_risk_driver
+        description: Highest-priority operational follow-up reason.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["billing_risk", "support_risk", "commercial_follow_up", "stable"]

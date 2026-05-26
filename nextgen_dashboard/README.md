@@ -4,7 +4,7 @@ Custom analytics web app built on top of the project warehouse and metric layer.
 
 ## Why This Module Exists
 
-The repository already includes dbt and Power BI, but this module pushes the
+The repository already includes dbt and a custom analytics backend, but this module pushes the
 portfolio further by showing application-oriented analytics delivery:
 
 - backend API design with FastAPI
@@ -28,6 +28,8 @@ portfolio further by showing application-oriented analytics delivery:
 - `Customer Segmentation`
 - `Product Performance`
 - `Pipeline Operations`
+- `Source Health`
+- `Account Health`
 
 ## Current UX Features
 
@@ -35,6 +37,11 @@ portfolio further by showing application-oriented analytics delivery:
 - global filters for date range, category, city, and comparison granularity
 - same-window versus previous-window comparisons
 - sales drilldown: click a period to open daily comparison in place
+- source health: inspect registered source loads, duplicate keys, null counts,
+  and batch metadata
+- account health: inspect CRM account ownership, billing risk, support pressure,
+  ecommerce activity, health tiers, risk drivers, and operational watchlist
+  priority
 - no Streamlit dependency
 
 ## Run
@@ -60,6 +67,8 @@ pytest tests/test_nextgen_dashboard_api.py
 - `GET /api/dashboard?page=sales|revenue|customers|products|operations`
 - `GET /api/dashboard?page=sales&granularity=Month&drilldown_period_key=2026-03`
 - `GET /api/revenue?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&granularity=Month`
+- `GET /api/source-health`
+- `GET /api/account-health`
 
 Optional repeated query params:
 

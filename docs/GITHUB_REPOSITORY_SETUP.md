@@ -8,7 +8,7 @@ Use this file to finish the public portfolio presentation on GitHub.
 
 ## Recommended Description
 
-`Desktop-first analytics engineering portfolio with Python, PostgreSQL, dbt, FastAPI, Power BI, and business-focused BI analysis.`
+`Desktop-first analytics engineering portfolio with Python, PostgreSQL, dbt, FastAPI, and business-focused BI analysis.`
 
 ## Recommended Topics
 
@@ -19,7 +19,7 @@ Use this file to finish the public portfolio presentation on GitHub.
 - `postgresql`
 - `dbt`
 - `fastapi`
-- `power-bi`
+- `business-intelligence`
 - `dashboard`
 - `portfolio-project`
 - `etl`

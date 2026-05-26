@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Script: setup_operational_monitoring_views.sql
--- Description: Creates monitoring views for an operational Power BI dashboard
+-- Description: Creates monitoring views for the operational analytics dashboard
 --              in PostgreSQL.
 -- =====================================================================
 

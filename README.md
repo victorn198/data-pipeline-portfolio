@@ -3,7 +3,7 @@
 ![Social preview](./assets/social-preview.png)
 
 Desktop-first analytics engineering portfolio built with `Python`,
-`PostgreSQL`, `dbt`, `FastAPI`, `Power BI`, and a custom BI product layer.
+`PostgreSQL`, `dbt`, `FastAPI`, and a custom BI product layer.
 
 This repository is meant to be read like a case study. It shows the full
 analytics lifecycle: ingestion, warehouse modeling, tests, monitoring,
@@ -21,15 +21,27 @@ semantic definitions, API delivery, and an interactive analytics interface.
   - anomaly and structural shift detection
   - forecast scenarios
 - product-style investigation features:
+  - `Data Center`
   - `Spotlight`
   - `Compare`
   - `Bookmarks`
   - `Recent`
   - `Action Board`
+- source reliability view:
+  - in-app source selection and local CSV/JSON preview
+  - automatic file profiling, dataset classification, mapping suggestions, and an isolated `Imported Dataset` preview window
+  - latest registered source loads
+  - duplicate-key and null profiling
+  - batch metadata surfaced in the analytics desktop
+- account health view:
+  - CRM, billing, support, and ecommerce signals joined into one mart
+  - governed watchlist for risk tier, open tickets, and outstanding balance
 
 ## What This Repository Demonstrates
 
 - ingestion into a `raw` layer
+- registered CSV/JSON/API-style source ingestion with load metadata and profiling
+- no-code local file intake in the app: CSV/JSON parsing, column profiling, suggested mappings, and preview analysis before governed promotion
 - warehouse modeling with `dbt`
 - data quality testing and monitoring objects
 - semantic KPI definitions for BI
@@ -38,11 +50,25 @@ semantic definitions, API delivery, and an interactive analytics interface.
 
 ## Gallery
 
-<img src="./assets/gallery/desktop-home.png" alt="NextGen desktop analytics shell" width="900">
+<img src="./assets/gallery/nextgen-demo.gif" alt="Short NextGen analytics desktop demo" width="900">
 
-<img src="./assets/gallery/desktop-sales-predictive.png" alt="Sales Overview and Predictive Outlook inside the desktop analytics shell" width="900">
+Interactive recording file: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
 
-<img src="./assets/gallery/desktop-products-retention.png" alt="Product Performance and Retention Cohorts inside the desktop analytics shell" width="900">
+<img src="./assets/gallery/desktop-home-compact.png" alt="NextGen desktop analytics shell in a compact browser viewport" width="900">
+
+<img src="./assets/gallery/desktop-workflow.png" alt="Layered investigation workflow with Sales Overview, Predictive Outlook, and Account Health" width="900">
+
+<img src="./assets/gallery/desktop-source-health.png" alt="Source Health registered-source quality and load monitoring view" width="900">
+
+<img src="./assets/gallery/desktop-account-health.png" alt="Account Health multi-source operations view inside the desktop analytics shell" width="900">
+
+Account Health case:
+
+- [Account Health Case Study](./docs/ACCOUNT_HEALTH_CASE_STUDY.md)
+- [Portfolio Application Material](./docs/APPLICATION_MATERIAL.md)
+- [Demo Script](./docs/DEMO_SCRIPT.md)
+- dbt mart: `dbtproject/models/marts/mart_account_health.sql`
+- API endpoint: `GET /api/account-health`
 
 ## Architecture
 
@@ -69,12 +95,16 @@ is offline.
 ## Product Features Included
 
 - desktop-style navigation with windows and taskbar
+- `Data Center` window with a connector library, source toggles, connection drafts, and no-code local CSV/JSON import analysis
+- `Imported Dataset` preview window with quality cards, suggested mapping, auto view, column profile, and sample rows isolated from official KPIs
 - `Spotlight` windows with local filters and frozen context
 - `Compare` windows for side-by-side investigation
 - `Bookmarks` to restore saved workspaces
 - `Recent` activity and `Action Board`
 - CSV export from detail and comparison views
 - window design themes inside the desktop shell
+- `Source Health` window for registered-source audit and profiling results
+- `Account Health` window for company operations and customer risk follow-up
 
 ## Quick Start
 
@@ -82,7 +112,6 @@ is offline.
 
 - Python `3.10+`
 - Docker Desktop or local PostgreSQL
-- Power BI Desktop (optional)
 
 ### Run locally
 
@@ -94,6 +123,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 python -m pip install --upgrade pip setuptools
 pip install -r requirements.txt -c constraints.txt
 python scripts/loadsampledata.py --mode full_refresh
+python scripts/load_registered_sources.py
 cd dbtproject
 dbt deps
 dbt run --full-refresh
@@ -149,12 +179,13 @@ More detail: [AI Collaboration Disclosure](./docs/AI_COLLABORATION_DISCLOSURE.md
 ## Repository Guide
 
 - `fivetran_simulator/`: ingestion simulators and scaled sample generation
+- `fivetran_simulator/source_registry.yml`: governed file-source contracts
 - `dbtproject/models/`: warehouse transformations
 - `dbtproject/tests/`: SQL quality checks
 - `nextgen_dashboard/`: FastAPI backend and desktop-first frontend
 - `scripts/setup_*.sql`: monitoring and operational SQL objects
 - `scripts/benchmark_dashboard.py`: dashboard performance regression check
-- `assets/gallery/`: real project screenshots
+- `assets/gallery/`: real project screenshots and demo captures
 - `assets/diagrams/`: architecture and warehouse visuals
 
 ## Useful Docs
@@ -162,6 +193,8 @@ More detail: [AI Collaboration Disclosure](./docs/AI_COLLABORATION_DISCLOSURE.md
 - [GitHub Repository Setup](./docs/GITHUB_REPOSITORY_SETUP.md)
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Data Lineage](./docs/DATA_LINEAGE.md)
+- [Multi-Source Analytics Roadmap](./docs/MULTI_SOURCE_ANALYTICS_ROADMAP.md)
+- [Business Source Decision](./docs/BUSINESS_SOURCE_DECISION.md)
 - [dbt Models](./docs/DBT_MODELS.md)
 - [Measure Dictionary](./docs/MEASURE_DICTIONARY.md)
 - [Predictive Outlook Method](./docs/PREDICTIVE_OUTLOOK_METHOD.md)

@@ -17,6 +17,7 @@ digraph G {
     color="lightgrey";
     node [fillcolor="#d7f5d2"];
     sim [label="Fivetran Simulator\n(Python)"];
+    registry [label="Registered Sources\nCSV / JSON / Paginated API"];
   }
 
   subgraph cluster_dw {
@@ -44,18 +45,19 @@ digraph G {
     style="filled";
     color="lightgreen";
     node [fillcolor="#d8f3dc"];
-    pbi [label="Power BI"];
+    bi [label="Custom BI Dashboard"];
     api [label="FastAPI SQL API\n(opcional)"];
   }
 
   sim -> raw [label="ingestao RAW"];
+  registry -> raw [label="load metadata + profiling"];
   raw -> dbt [label="sources"];
   dbt -> staging [label="modelos staging"];
   staging -> intermediate [label="joins/enriquecimento"];
   intermediate -> marts [label="fato + dimensoes"];
   marts -> monitoring [label="views operacionais"];
-  marts -> pbi [label="dashboard executivo"];
-  monitoring -> pbi [label="KPIs operacionais"];
+  marts -> bi [label="dashboard executivo"];
+  monitoring -> bi [label="KPIs operacionais"];
   marts -> api [label="consulta read-only"];
 }
 ```
@@ -63,7 +65,8 @@ digraph G {
 ## Fluxo resumido
 
 1. `scripts/loadsampledata.py` e extratores em `fivetran_simulator/` carregam `raw.orders_raw`, `raw.customers_raw` e `raw.products_raw`.
-2. dbt le as fontes RAW e materializa camadas `staging`, `intermediate` e `marts`.
-3. Scripts SQL criam auditoria em `data_quality` e views de operacao em `monitoring`.
-4. Power BI conecta no PostgreSQL e consome `marts` + `monitoring`.
-5. API FastAPI (opcional) permite consultas SQL read-only para suporte de analise.
+2. `scripts/load_registered_sources.py` le `fivetran_simulator/source_registry.yml` e carrega fontes CSV/JSON/API paginada registradas em `raw`, com auditoria em `raw.source_load_batches` e profiling em `data_quality.source_profile_results`.
+3. dbt le as fontes RAW e materializa camadas `staging`, `intermediate` e `marts`.
+4. Scripts SQL criam auditoria em `data_quality` e views de operacao em `monitoring`.
+5. O dashboard proprio consome payloads derivados de `marts` + `monitoring`.
+6. API FastAPI (opcional) permite consultas SQL read-only para suporte de analise.

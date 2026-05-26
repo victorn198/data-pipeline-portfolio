@@ -28,7 +28,7 @@ dbtproject/logs/
 RUNBOOK.md
 data/local/
 
-# Power BI (WIP - keep out of git until dashboard is finalized)
+# Local BI artifacts and binary report files
 power_bi/
 *.pbix
 *.pbit

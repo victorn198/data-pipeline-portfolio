@@ -14,9 +14,11 @@ import pandas as pd
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from .account_health import AccountHealthService
 from .dashboard_service import DashboardService
 from .data_source import DataSourceError
 from .models import (
+    AccountHealthPayload,
     AgentAssistRequest,
     AuditLogPayload,
     DashboardPayload,
@@ -35,6 +37,7 @@ from .models import (
     ProposalSuggestionPayload,
     RevenuePayload,
     SemanticLayerPayload,
+    SourceHealthPayload,
 )
 from .proposal_applier import ProposalApplier, ProposalApplyError
 from .proposal_engine import ProposalEngine
@@ -44,6 +47,7 @@ from .proposal_validator import ProposalValidationError, ProposalValidator
 from .repository import SalesRepository
 from .revenue import RevenueService
 from .semantic_layer import SemanticLayer
+from .source_health import SourceHealthService
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = APP_ROOT / "frontend"
@@ -145,7 +149,7 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
     response.headers.setdefault(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';",
+        "default-src 'self'; script-src 'self' https://cdn.plot.ly https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self';",
     )
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
     return response
@@ -158,6 +162,8 @@ dashboard_service = DashboardService(
     revenue_service=revenue_service,
     semantic_layer=semantic_layer,
 )
+source_health_service = SourceHealthService()
+account_health_service = AccountHealthService()
 proposal_store = ProposalStore()
 proposal_engine = ProposalEngine(semantic_layer=semantic_layer)
 proposal_validator = ProposalValidator(semantic_layer=semantic_layer)
@@ -330,6 +336,21 @@ def semantic_layer_endpoint() -> SemanticLayerPayload:
         metrics=payload["metrics"]["metrics"],
         pages=payload["pages"]["pages"],
     )
+
+
+@app.get("/api/source-health", response_model=SourceHealthPayload)
+def source_health_endpoint() -> SourceHealthPayload:
+    return source_health_service.build_payload()
+
+
+@app.get("/api/source-catalog")
+def source_catalog_endpoint() -> dict[str, object]:
+    return source_health_service.build_catalog_payload()
+
+
+@app.get("/api/account-health", response_model=AccountHealthPayload)
+def account_health_endpoint() -> AccountHealthPayload:
+    return account_health_service.build_payload()
 
 
 @app.get("/api/agent/suggestions", response_model=ProposalSuggestionPayload)

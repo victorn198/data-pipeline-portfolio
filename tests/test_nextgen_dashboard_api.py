@@ -123,6 +123,75 @@ def test_semantic_layer_endpoint() -> None:
     assert payload["metrics"]["top_category_share"]["format"] == "percent"
 
 
+def test_source_health_endpoint() -> None:
+    response = client.get("/api/source-health")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["status"] in {"ok", "unavailable"}
+    assert payload["title"] == "Source Health"
+    assert payload["generated_at"]
+    assert isinstance(payload["cards"], list)
+    assert payload["cards"]
+    assert payload["loads_table"]["title"] == "Latest Source Loads"
+    assert payload["profile_table"]["title"] == "Source Profiling Results"
+
+    if payload["status"] == "ok":
+        card_keys = {card["key"] for card in payload["cards"]}
+        assert {"sources_loaded", "rows_loaded", "duplicate_keys", "null_values"}.issubset(card_keys)
+        assert payload["loads_table"]["rows"]
+        assert payload["profile_table"]["rows"]
+
+
+def test_source_catalog_endpoint() -> None:
+    response = client.get("/api/source-catalog")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["title"] == "Data Center"
+    assert payload["generated_at"]
+    assert isinstance(payload["sources"], list)
+    assert payload["sources"]
+
+    source = payload["sources"][0]
+    assert {
+        "name",
+        "label",
+        "source_type",
+        "type_label",
+        "target",
+        "primary_key",
+        "columns",
+        "status",
+    }.issubset(source)
+    assert isinstance(source["columns"], list)
+
+
+def test_account_health_endpoint() -> None:
+    response = client.get("/api/account-health")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["status"] in {"ok", "unavailable"}
+    assert payload["title"] == "Account Health"
+    assert payload["generated_at"]
+    assert isinstance(payload["cards"], list)
+    assert payload["cards"]
+    assert payload["tier_table"]["title"] == "Health Tier Summary"
+    assert payload["account_table"]["title"] == "Account Watchlist"
+
+    if payload["status"] == "ok":
+        card_keys = {card["key"] for card in payload["cards"]}
+        assert {
+            "accounts_monitored",
+            "average_health_score",
+            "accounts_at_risk",
+            "outstanding_amount",
+        }.issubset(card_keys)
+        assert payload["tier_table"]["rows"]
+        assert payload["account_table"]["rows"]
+
+
 def test_dashboard_pages_respond() -> None:
     for page in ("sales", "revenue", "predictive", "customers", "retention", "products", "operations"):
         response = client.get("/api/dashboard", params={"page": page})

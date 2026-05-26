@@ -55,6 +55,30 @@ const DESKTOP_PAGES = [
     iconClass: "icon-art--operations",
     rect: { x: 230, y: 120, w: 920, h: 680 },
   },
+  {
+    key: "data_center",
+    label: "Data Center",
+    desktopLabel: "Data Center",
+    windowLabel: "Data Center",
+    iconClass: "icon-art--data-center",
+    rect: { x: 96, y: 54, w: 1020, h: 700 },
+  },
+  {
+    key: "source_health",
+    label: "Source Health",
+    desktopLabel: "Source Health",
+    windowLabel: "Source Health",
+    iconClass: "icon-art--source-health",
+    rect: { x: 264, y: 84, w: 960, h: 680 },
+  },
+  {
+    key: "account_health",
+    label: "Account Health",
+    desktopLabel: "Account Health",
+    windowLabel: "Account Health",
+    iconClass: "icon-art--account-health",
+    rect: { x: 296, y: 112, w: 980, h: 700 },
+  },
 ];
 
 const WINDOW_THEMES = {
@@ -104,6 +128,55 @@ const WINDOW_THEMES = {
   },
 };
 
+const CONNECTOR_OPTIONS = [
+  {
+    key: "file_csv",
+    title: "CSV File",
+    type: "File",
+    description: "Choose a local CSV and preview rows before loading it.",
+    action: "file",
+    accept: ".csv,text/csv",
+  },
+  {
+    key: "file_json",
+    title: "JSON File",
+    type: "File",
+    description: "Choose a local JSON file or records array for preview.",
+    action: "file",
+    accept: ".json,application/json",
+  },
+  {
+    key: "postgres",
+    title: "PostgreSQL Table",
+    type: "Database",
+    description: "Save a table connection draft without exposing credentials.",
+    action: "draft",
+  },
+  {
+    key: "rest_api",
+    title: "REST API",
+    type: "Application",
+    description: "Define endpoint, grain, and primary key as a governed draft.",
+    action: "draft",
+  },
+  {
+    key: "crm_accounts_api",
+    title: "CRM Accounts",
+    type: "Preset",
+    description: "Connect the registered CRM account source.",
+    action: "registered",
+    sourceName: "crm_accounts_api",
+  },
+  {
+    key: "billing_invoices_api",
+    title: "Billing Invoices",
+    type: "Preset",
+    description: "Connect the registered billing source.",
+    action: "registered",
+    sourceName: "billing_invoices_api",
+  },
+];
+
 const state = {
   meta: null,
   filters: {
@@ -116,11 +189,15 @@ const state = {
   },
   windowTheme: "glass",
   preferencesKey: "nextgen-desktop-lab-preferences",
+  sessionKey: "nextgen-desktop-session-active",
   onboardingKey: "nextgen-desktop-onboarding",
   bookmarksKey: "nextgen-desktop-bookmarks",
   actionsKey: "nextgen-desktop-actions",
   annotationsKey: "nextgen-desktop-annotations",
   recentKey: "nextgen-desktop-recent",
+  sourceConnectionsKey: "nextgen-desktop-source-connections",
+  sourceDraftsKey: "nextgen-desktop-source-drafts",
+  importedDatasetsKey: "nextgen-desktop-imported-datasets",
   cache: new Map(),
   spotlights: new Map(),
   spotlightCache: new Map(),
@@ -135,9 +212,15 @@ const state = {
   actionItems: [],
   annotations: [],
   recentEntries: [],
+  sourceConnections: {},
+  sourceDrafts: [],
+  importedDatasets: [],
+  activeConnectorSetup: "",
+  localFilePreview: null,
   onboarding: {
     dismissed: false,
     tasks: {
+      dataCenterOpen: false,
       salesOpen: false,
       predictiveOpen: false,
       spotlightUsed: false,
@@ -167,8 +250,13 @@ const elements = {
   openRecent: document.getElementById("open-recent-btn"),
   openBookmarks: document.getElementById("open-bookmarks-btn"),
   openActions: document.getElementById("open-actions-btn"),
+  lockWorkspace: document.getElementById("lock-workspace-btn"),
   onboarding: document.getElementById("desktop-onboarding"),
   desktop: document.querySelector(".desktop"),
+  loginScreen: document.getElementById("login-screen"),
+  loginSubmit: document.getElementById("login-submit"),
+  loginSkip: document.getElementById("login-demo-skip"),
+  loginWorkspaceInput: document.getElementById("login-workspace-input"),
 };
 
 const resizeDirections = ["n", "e", "s", "w", "nw", "ne", "sw", "se"];
@@ -238,6 +326,9 @@ function filtersSnapshot(source = state.filters) {
   };
 }
 function cacheKey(pageKey) {
+  if (pageKey === "data_center") return "data_center";
+  if (pageKey === "source_health") return "source_health";
+  if (pageKey === "account_health") return "account_health";
   return [
     pageKey,
     state.filters.startDate,
@@ -523,7 +614,13 @@ function openWindow(id) {
     renderRecentWindow(id);
     return;
   }
+  if (win.dataset.windowKind === "imported_dataset") {
+    renderImportedDatasetWindow(id);
+    return;
+  }
   if (win.dataset.windowKind === "page") {
+    if (win.dataset.pageKey === "data_center")
+      markOnboardingStep("dataCenterOpen");
     if (win.dataset.pageKey === "sales") markOnboardingStep("salesOpen");
     if (win.dataset.pageKey === "predictive")
       markOnboardingStep("predictiveOpen");
@@ -868,6 +965,7 @@ function applyQueryPreset() {
   const scenario = params.get("scenario");
   const startDate = params.get("start");
   const endDate = params.get("end");
+  const guide = params.get("guide");
   const categories = parseQueryFilterValues(params, "category", "categories");
   const cities = parseQueryFilterValues(params, "city", "cities");
 
@@ -880,6 +978,9 @@ function applyQueryPreset() {
   if (endDate) state.filters.endDate = endDate;
   if (categories.length) state.filters.categories = categories;
   if (cities.length) state.filters.cities = cities;
+  if (guide === "off" || guide === "0" || guide === "false") {
+    state.onboarding.dismissed = true;
+  }
 
   return {
     openPages: (params.get("open") || "")
@@ -902,6 +1003,102 @@ function savePreferences() {
       }),
     );
   } catch (_) {}
+}
+
+function loginDisabledByQuery() {
+  const value = new URLSearchParams(window.location.search).get("login");
+  return value === "off" || value === "0" || value === "false";
+}
+
+function showLoginScreen() {
+  if (!elements.loginScreen) return;
+  elements.loginScreen.classList.remove("is-hidden");
+  window.setTimeout(() => elements.loginWorkspaceInput?.focus(), 80);
+}
+
+function enterWorkspace() {
+  try {
+    window.sessionStorage.setItem(state.sessionKey, "1");
+  } catch (_) {}
+  elements.loginScreen?.classList.add("is-hidden");
+  elements.taskbarMessage.textContent =
+    "Workspace ready. Open Data Center to choose sources or start from the desktop icons.";
+}
+
+function lockWorkspace() {
+  try {
+    window.sessionStorage.removeItem(state.sessionKey);
+  } catch (_) {}
+  setWorkspaceMenu(false);
+  showLoginScreen();
+}
+
+function bindLoginScreen() {
+  if (!elements.loginScreen) return;
+  let active = false;
+  try {
+    active = window.sessionStorage.getItem(state.sessionKey) === "1";
+  } catch (_) {}
+  if (loginDisabledByQuery() || active) {
+    elements.loginScreen.classList.add("is-hidden");
+  } else {
+    showLoginScreen();
+  }
+  elements.loginSubmit?.addEventListener("click", enterWorkspace);
+  elements.loginSkip?.addEventListener("click", enterWorkspace);
+  elements.loginWorkspaceInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") enterWorkspace();
+  });
+}
+
+function loadSourceConnections() {
+  try {
+    const raw = window.localStorage.getItem(state.sourceConnectionsKey);
+    const parsed = raw ? JSON.parse(raw) : {};
+    state.sourceConnections =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed
+        : {};
+  } catch (_) {
+    state.sourceConnections = {};
+  }
+}
+
+function persistSourceConnections() {
+  try {
+    window.localStorage.setItem(
+      state.sourceConnectionsKey,
+      JSON.stringify(state.sourceConnections),
+    );
+  } catch (_) {}
+}
+
+function loadSourceDrafts() {
+  try {
+    const raw = window.localStorage.getItem(state.sourceDraftsKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    state.sourceDrafts = Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    state.sourceDrafts = [];
+  }
+}
+
+function persistSourceDrafts() {
+  try {
+    window.localStorage.setItem(
+      state.sourceDraftsKey,
+      JSON.stringify(state.sourceDrafts.slice(0, 12)),
+    );
+  } catch (_) {}
+}
+
+function sourceConnected(sourceName) {
+  return state.sourceConnections[sourceName] !== false;
+}
+
+function setSourceConnected(sourceName, connected) {
+  state.sourceConnections[sourceName] = Boolean(connected);
+  persistSourceConnections();
 }
 
 function defaultOnboardingState() {
@@ -1041,6 +1238,9 @@ function windowMinimumForKind(win) {
     return { width: 720, height: 460 };
   if (win.dataset.windowKind === "actions") return { width: 760, height: 480 };
   if (win.dataset.windowKind === "recent") return { width: 660, height: 420 };
+  if (win.dataset.windowKind === "imported_dataset")
+    return { width: 760, height: 520 };
+  if (win.dataset.pageKey === "data_center") return { width: 760, height: 520 };
   if (win.dataset.pageKey === "predictive") return { width: 760, height: 520 };
   if (win.dataset.pageKey === "retention") return { width: 740, height: 500 };
   return { width: 680, height: 460 };
@@ -1074,7 +1274,7 @@ function renderOnboarding() {
             <strong>Workspace basics complete</strong>
             <p>Reopen the guide from the top bar if you need it again.</p>
           </div>
-          <span class="onboarding-progress">3/3</span>
+        <span class="onboarding-progress">${totalSteps}/${totalSteps}</span>
         </div>
         <div class="onboarding-actions">
           <button class="toolbar-button toolbar-button--micro" type="button" data-guide-action="checklist">Checklist</button>
@@ -1125,7 +1325,7 @@ function renderOnboarding() {
       <div class="onboarding-head">
         <div>
           <strong>${isComplete ? "You are ready" : "Start with one simple workflow"}</strong>
-          <p>${isComplete ? "The workspace basics are covered. Keep the guide closed and reopen it if needed." : "Open two core views, then use Spotlight once. That is enough to understand how this desktop works."}</p>
+          <p>${isComplete ? "The workspace basics are covered. Keep the guide closed and reopen it if needed." : "Open Data Center, then two core views and Spotlight once. That is enough to understand how this desktop works."}</p>
         </div>
         <span class="onboarding-progress">${stepsDone}/${totalSteps}</span>
       </div>
@@ -1140,6 +1340,7 @@ function renderOnboarding() {
         <button class="toolbar-button toolbar-button--ghost" type="button" data-guide-action="dismiss">${isComplete ? "Hide guide" : "Skip for now"}</button>
       </div>
       <div class="onboarding-list">
+        ${item("dataCenterOpen", "Open Data Center", "Choose the sources available to this workspace.", "Open", "data_center")}
         ${item("salesOpen", "Open Sales Overview", "Start with the topline page to ground the time slice.", "Open", "sales")}
         ${item("predictiveOpen", "Open Predictive Outlook", "Use the forecast view next to move from reporting to planning.", "Open", "predictive")}
         ${item("spotlightUsed", "Use Spotlight once", "Spotlight isolates one chart or table into its own investigation window.", "Show me", "spotlight")}
@@ -1184,6 +1385,7 @@ function storageTtlDays(key) {
   if (key === state.actionsKey) return 60;
   if (key === state.annotationsKey) return 30;
   if (key === state.recentKey) return 30;
+  if (key === state.importedDatasetsKey) return 30;
   return 30;
 }
 
@@ -1226,6 +1428,11 @@ function loadWorkspaceCollections() {
   state.actionItems = readStoredArray(state.actionsKey);
   state.annotations = readStoredArray(state.annotationsKey);
   state.recentEntries = readStoredArray(state.recentKey);
+  state.importedDatasets = readStoredArray(state.importedDatasetsKey).slice(
+    0,
+    8,
+  );
+  state.localFilePreview = state.importedDatasets[0] || null;
 }
 
 function persistBookmarks() {
@@ -1239,6 +1446,9 @@ function persistAnnotations() {
 }
 function persistRecentEntries() {
   writeStoredArray(state.recentKey, state.recentEntries);
+}
+function persistImportedDatasets() {
+  writeStoredArray(state.importedDatasetsKey, state.importedDatasets.slice(0, 8));
 }
 
 function isoNow() {
@@ -1280,6 +1490,9 @@ function serializeOpenWindows() {
     }
     if (win.dataset.windowKind === "recent") {
       return base;
+    }
+    if (win.dataset.windowKind === "imported_dataset") {
+      return { ...base, importId: win.dataset.importId || "" };
     }
     if (
       win.dataset.windowKind === "bookmarks" ||
@@ -1413,6 +1626,14 @@ function restoreWorkspaceSnapshot(snapshot) {
       openRecentWindow(windowState.windowId);
       const win = document.querySelector(
         `.window[data-window-id="${windowState.windowId}"]`,
+      );
+      setWindowRectState(win, windowState);
+      return;
+    }
+    if (windowState.windowKind === "imported_dataset") {
+      openImportedDatasetWindow(windowState.importId);
+      const win = document.querySelector(
+        `.window[data-import-id="${windowState.importId}"]`,
       );
       setWindowRectState(win, windowState);
     }
@@ -2482,6 +2703,39 @@ function renderCards(cards) {
     )
     .join("");
 }
+
+function fitCardValues(scope) {
+  window.requestAnimationFrame(() => {
+    scope.querySelectorAll(".lab-card-value").forEach((valueEl) => {
+      valueEl.style.fontSize = "";
+      const baseSize = Number.parseFloat(window.getComputedStyle(valueEl).fontSize);
+      let size = baseSize;
+      const minSize = 16;
+      while (
+        valueEl.clientWidth > 0 &&
+        valueEl.scrollWidth > valueEl.clientWidth &&
+        size > minSize
+      ) {
+        size -= 1;
+        valueEl.style.fontSize = `${size}px`;
+      }
+    });
+  });
+}
+
+function observeCardValueFit(scope) {
+  if (!scope) return;
+  if (scope._cardValueFitObserver) scope._cardValueFitObserver.disconnect();
+  if (typeof ResizeObserver === "function") {
+    scope._cardValueFitObserver = new ResizeObserver(() => fitCardValues(scope));
+    scope._cardValueFitObserver.observe(scope);
+    scope
+      .querySelectorAll(".lab-card")
+      .forEach((card) => scope._cardValueFitObserver.observe(card));
+  }
+  fitCardValues(scope);
+}
+
 function renderNarrative(payload) {
   const lines = uniqueNarrative([
     payload.summary?.[0],
@@ -3470,6 +3724,7 @@ function renderWindow(win, payload) {
   win.dataset.loadedPage = payload.page;
   refs.status.textContent = `${payload.title} loaded | ${payload.start_date} -> ${payload.end_date}`;
   refs.cards.innerHTML = renderCards(payload.cards || []);
+  observeCardValueFit(refs.cards);
   refs.narrative.innerHTML = renderNarrative(payload);
   refs.annotations.innerHTML = renderAnnotations(payload.page);
   const breadcrumb =
@@ -3536,6 +3791,1792 @@ function renderWindow(win, payload) {
     refs.detailPanel.exportButton.onclick = null;
 
   bindWindowSpotlightActions(win, payload);
+}
+
+function renderSourceHealthCards(cards) {
+  return (cards || [])
+    .map(
+      (card) => `
+        <article class="lab-card source-health-card source-health-card--${escapeHtml(card.status || "neutral")}">
+          <div class="lab-card-head">
+            <p class="lab-card-title">${escapeHtml(card.title)}</p>
+            <span class="source-health-status">${escapeHtml(card.status || "neutral")}</span>
+          </div>
+          <p class="lab-card-value">${escapeHtml(card.value)}</p>
+          <div class="lab-card-meta"><span>${escapeHtml(card.subtitle)}</span></div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderSourceHealthWindow(win, payload) {
+  const refs = windowRefs(win);
+  win._payload = payload;
+  win.dataset.loadedPage = "source_health";
+  if (refs.status) {
+    refs.status.textContent =
+      payload.status === "ok"
+        ? `Source Health loaded | ${payload.generated_at || ""}`
+        : "Source Health unavailable";
+  }
+
+  refs.cards.innerHTML = renderSourceHealthCards(payload.cards || []);
+  observeCardValueFit(refs.cards);
+  refs.narrative.innerHTML = renderNarrative({
+    summary: payload.summary || [],
+    insight_note: payload.subtitle,
+  });
+  refs.annotations.innerHTML = renderAnnotations("source_health");
+  refs.breadcrumb.classList.add("hidden");
+  refs.primaryTitle.textContent =
+    payload.loads_table?.title || "Latest Source Loads";
+  refs.primaryMeta.textContent = "Latest batch per registered source";
+  refs.primaryBack.classList.add("hidden");
+  refs.primaryBack.onclick = null;
+  purgePlot(refs.primaryPlot);
+  refs.primaryPlot.innerHTML = buildTableHtml(payload.loads_table, null);
+
+  refs.secondaryPanel.classList.add("hidden");
+  purgePlot(refs.secondaryPlot);
+
+  refs.tablePanel.classList.remove("hidden");
+  refs.tableTitle.textContent =
+    payload.profile_table?.title || "Source Profiling Results";
+  refs.tableMeta.textContent = "Row count, duplicate-key and null profiling";
+  refs.table.innerHTML = buildTableHtml(payload.profile_table, 40);
+
+  refs.detailPanel.panel.classList.add("hidden");
+  refs.detailPanel.panel.dataset.interactionKey = "";
+  refs.detailPanel.panel.dataset.interactionValue = "";
+  refs.detailPanel.spotlightButton?.classList.add("hidden");
+  refs.detailPanel.exportButton?.classList.add("hidden");
+  refs.detailPanel.breadcrumbEl?.classList.add("hidden");
+
+  win
+    .querySelectorAll(".spotlight-button, [data-action='compare']")
+    .forEach((button) => button.classList.add("hidden"));
+}
+
+function formatSourceCount(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number.toLocaleString("en-US") : "0";
+}
+
+function dataCenterSources(payload) {
+  const sources = Array.isArray(payload?.sources) ? payload.sources.slice() : [];
+  state.sourceDrafts.forEach((draft) => sources.unshift(draft));
+  if (state.localFilePreview) {
+    const analysis = state.localFilePreview.analysis || {};
+    sources.unshift({
+      name: state.localFilePreview.id,
+      label: state.localFilePreview.name,
+      source_type: state.localFilePreview.type,
+      type_label: state.localFilePreview.typeLabel,
+      connection_group: "Local file",
+      target: "Workspace preview",
+      load_mode: "Preview",
+      primary_key:
+        analysis.mappingRows?.find((row) => row.role === "Entity ID")?.column ||
+        state.localFilePreview.columns?.[0] ||
+        "",
+      grain: analysis.datasetKind?.label || "Rows detected in selected file",
+      business_purpose:
+        analysis.importNote ||
+        "Local file selected from this browser session for inspection before governed loading.",
+      columns: state.localFilePreview.columns || [],
+      row_count: state.localFilePreview.rowCount || 0,
+      duplicate_key_count: analysis.quality?.duplicateCount || 0,
+      loaded_at: "This session",
+      status: "loaded",
+      status_label: "Analyzed Preview",
+      local: true,
+    });
+  }
+  return sources;
+}
+
+function renderDataCenterCards(payload) {
+  const sources = dataCenterSources(payload);
+  const connected = sources.filter((source) => sourceConnected(source.name));
+  const rows = connected.reduce(
+    (total, source) => total + Number(source.row_count || 0),
+    0,
+  );
+  const fileSources = connected.filter(
+    (source) => source.connection_group === "File" || source.local,
+  ).length;
+  return renderSourceHealthCards([
+    {
+      key: "available_sources",
+      title: "Available Sources",
+      value: String(sources.length),
+      subtitle: "Sources visible in this workspace",
+      status: sources.length ? "ok" : "warning",
+    },
+    {
+      key: "connected_sources",
+      title: "Connected",
+      value: String(connected.length),
+      subtitle: "Enabled for this session",
+      status: connected.length ? "ok" : "warning",
+    },
+    {
+      key: "connected_rows",
+      title: "Rows Ready",
+      value: formatSourceCount(rows),
+      subtitle: "Loaded or previewed rows",
+      status: rows ? "ok" : "neutral",
+    },
+    {
+      key: "file_sources",
+      title: "Files",
+      value: String(fileSources),
+      subtitle: "CSV/JSON sources in the workspace",
+      status: fileSources ? "ok" : "neutral",
+    },
+  ]);
+}
+
+function renderDataSourceCards(payload) {
+  const sources = dataCenterSources(payload);
+  if (!sources.length)
+    return renderStateCard({
+      title: "No sources registered",
+      message: "Add CSV, JSON, or application sources to the source registry.",
+      stateType: "empty",
+    });
+  return `
+    <div class="data-source-grid">
+      ${sources
+        .map((source) => {
+          const connected = sourceConnected(source.name);
+          const columns = Array.isArray(source.columns) ? source.columns : [];
+          return `
+            <article class="data-source-card ${connected ? "is-on" : "is-off"}">
+              <div class="data-source-head">
+                <div>
+                  <strong>${escapeHtml(source.label || source.name)}</strong>
+                  <span>${escapeHtml(source.target || "Workspace source")}</span>
+                </div>
+                <span class="data-source-status ${connected ? "is-on" : "is-off"}">${connected ? "Connected" : "Off"}</span>
+              </div>
+              <div class="data-source-badges">
+                <span class="data-source-badge">${escapeHtml(source.type_label || source.source_type || "Source")}</span>
+                <span class="data-source-badge">${escapeHtml(source.load_mode || "Managed")}</span>
+                <span class="data-source-badge">${escapeHtml(connected ? source.status_label || source.status || "Connected" : "Available")}</span>
+              </div>
+              <div class="data-source-metrics">
+                <span><b>${escapeHtml(formatSourceCount(source.row_count))}</b> rows</span>
+                <span><b>${escapeHtml(formatSourceCount(source.duplicate_key_count))}</b> duplicates</span>
+                <span><b>${escapeHtml(String(columns.length))}</b> fields</span>
+              </div>
+              <p class="data-source-purpose">${escapeHtml(source.business_purpose || source.grain || "Available for workspace analysis.")}</p>
+              <div class="data-source-actions">
+                <button class="toolbar-button toolbar-button--micro" type="button" data-source-toggle="${escapeHtml(source.name)}">${connected ? "Disconnect" : "Connect"}</button>
+                ${
+                  source.local
+                    ? `<button class="toolbar-button toolbar-button--micro" type="button" data-action="open-imported-analysis" data-import-id="${escapeHtml(source.name)}">Analyze</button>`
+                    : ""
+                }
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function dataSourceTablePayload(payload) {
+  return {
+    title: "Workspace Source Selection",
+    columns: [
+      { key: "source", label: "Source" },
+      { key: "status", label: "Status" },
+      { key: "type", label: "Type" },
+      { key: "rows", label: "Rows" },
+      { key: "target", label: "Target" },
+      { key: "fields", label: "Fields" },
+    ],
+    rows: dataCenterSources(payload).map((source) => ({
+      values: {
+        source: source.label || source.name,
+        status: sourceConnected(source.name) ? "Connected" : "Off",
+        type: source.type_label || source.source_type || "Source",
+        rows: formatSourceCount(source.row_count),
+        target: source.target || "Workspace",
+        fields: Array.isArray(source.columns)
+          ? source.columns.slice(0, 6).join(", ")
+          : "",
+      },
+    })),
+  };
+}
+
+function localPreviewTablePayload() {
+  const preview = state.localFilePreview;
+  if (!preview) return null;
+  return {
+    title: `${preview.name} preview`,
+    columns: preview.columns.map((column) => ({ key: column, label: column })),
+    rows: preview.rows.map((row) => ({ values: row })),
+  };
+}
+
+function renderDataFilePreview() {
+  const preview = state.localFilePreview;
+  const tablePayload = localPreviewTablePayload();
+  const analysis = preview?.analysis || {};
+  const quality = analysis.quality || {};
+  return `
+    ${
+      preview
+        ? `<div class="data-preview-summary">
+            <strong>${escapeHtml(preview.name)}</strong>
+            <span>${escapeHtml(formatSourceCount(preview.rowCount))} rows detected across ${escapeHtml(String(preview.columns.length))} fields. Detected as ${escapeHtml(analysis.datasetKind?.label || "Imported table")} with ${escapeHtml(String(quality.qualityScore ?? "-"))}/100 preview quality.</span>
+            <div class="data-preview-actions">
+              <button class="toolbar-button toolbar-button--micro" type="button" data-action="open-imported-analysis" data-import-id="${escapeHtml(preview.id)}">Open analysis</button>
+              <button class="toolbar-button toolbar-button--micro" type="button" data-action="clear-local-preview">Remove preview</button>
+            </div>
+          </div>
+          ${buildTableHtml(tablePayload, 6)}`
+        : `<div class="data-file-drop">
+            <strong>No local file selected</strong>
+            <span>Use CSV File or JSON File in the connector library. The app profiles, maps, and opens an import analysis automatically.</span>
+          </div>`
+    }
+  `;
+}
+
+function connectorByKey(key) {
+  return CONNECTOR_OPTIONS.find((connector) => connector.key === key);
+}
+
+function renderConnectorSetup() {
+  const connector = connectorByKey(state.activeConnectorSetup);
+  if (!connector || connector.action !== "draft") return "";
+  const isApi = connector.key === "rest_api";
+  return `
+    <form class="connector-setup" data-role="connector-setup" data-connector="${escapeHtml(connector.key)}">
+      <div class="connector-setup-head">
+        <strong>${escapeHtml(connector.title)} setup</strong>
+        <span>No passwords or tokens are saved in this portfolio demo.</span>
+      </div>
+      <label>
+        <span>Connection name</span>
+        <input name="label" value="${escapeHtml(connector.title)}" autocomplete="off" />
+      </label>
+      <label>
+        <span>${isApi ? "Endpoint URL" : "Host or database"}</span>
+        <input name="location" placeholder="${isApi ? "https://api.company.com/accounts" : "analytics.company.local"}" autocomplete="off" />
+      </label>
+      <label>
+        <span>${isApi ? "Records path" : "Schema.table"}</span>
+        <input name="target" placeholder="${isApi ? "records" : "marts.fct_sales"}" autocomplete="off" />
+      </label>
+      <label>
+        <span>Primary key</span>
+        <input name="primaryKey" placeholder="${isApi ? "account_id" : "id"}" autocomplete="off" />
+      </label>
+      <div class="connector-setup-actions">
+        <button class="toolbar-button toolbar-button--highlight" type="submit">Save draft</button>
+        <button class="toolbar-button toolbar-button--micro" type="button" data-action="cancel-connector-setup">Cancel</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderConnectorLibrary(payload) {
+  const registeredNames = new Set(
+    (payload?.sources || []).map((source) => source.name),
+  );
+  return `
+    <div class="connector-library">
+      <div class="connector-library-head">
+        <strong>Connector Library</strong>
+        <span>Choose a source type; files preview immediately, databases and APIs become governed connection drafts.</span>
+      </div>
+      <input class="data-file-input" data-role="data-file-input" type="file" accept=".csv,.json,application/json,text/csv" />
+      <div class="connector-grid">
+        ${CONNECTOR_OPTIONS.map((connector) => {
+          const registeredReady =
+            connector.action !== "registered" ||
+            registeredNames.has(connector.sourceName);
+          return `
+            <article class="connector-card ${registeredReady ? "" : "is-disabled"}">
+              <div>
+                <strong>${escapeHtml(connector.title)}</strong>
+                <span>${escapeHtml(connector.type)}</span>
+              </div>
+              <p>${escapeHtml(connector.description)}</p>
+              <button class="toolbar-button toolbar-button--micro" type="button" data-connector-action="${escapeHtml(connector.action)}" data-connector-key="${escapeHtml(connector.key)}" ${registeredReady ? "" : "disabled"}>
+                ${connector.action === "file" ? "Choose" : connector.action === "draft" ? "Set up" : "Connect"}
+              </button>
+            </article>
+          `;
+        }).join("")}
+      </div>
+      ${renderConnectorSetup()}
+      <div class="data-file-zone">
+        ${renderDataFilePreview()}
+      </div>
+    </div>
+  `;
+}
+
+function renderDataCenterWindow(win, payload) {
+  const refs = windowRefs(win);
+  win._payload = payload;
+  win.dataset.loadedPage = "data_center";
+  if (refs.status) {
+    refs.status.textContent = `Data Center ready | ${payload.generated_at || ""}`;
+  }
+
+  refs.cards.innerHTML = renderDataCenterCards(payload);
+  observeCardValueFit(refs.cards);
+  refs.narrative.innerHTML = renderNarrative({
+    summary: payload.summary || [],
+    insight_note: payload.message || payload.subtitle,
+  });
+  refs.annotations.innerHTML = renderAnnotations("data_center");
+  refs.breadcrumb.classList.add("hidden");
+
+  refs.primaryTitle.textContent = "Source Connections";
+  refs.primaryMeta.textContent = "Choose which sources are active in this workspace";
+  refs.primaryBack.classList.add("hidden");
+  refs.primaryBack.onclick = null;
+  purgePlot(refs.primaryPlot);
+  refs.primaryPlot.innerHTML = renderDataSourceCards(payload);
+
+  refs.secondaryPanel.classList.remove("hidden");
+  refs.secondaryTitle.textContent = "Add Source";
+  refs.secondaryMeta.textContent = "Connector options inside the workspace";
+  purgePlot(refs.secondaryPlot);
+  refs.secondaryPlot.innerHTML = renderConnectorLibrary(payload);
+
+  refs.tablePanel.classList.remove("hidden");
+  refs.tableTitle.textContent = "Selected Sources";
+  refs.tableMeta.textContent = "Current workspace source state";
+  refs.table.innerHTML = buildTableHtml(dataSourceTablePayload(payload), 20);
+
+  refs.detailPanel.panel.classList.add("hidden");
+  refs.detailPanel.panel.dataset.interactionKey = "";
+  refs.detailPanel.panel.dataset.interactionValue = "";
+  refs.detailPanel.spotlightButton?.classList.add("hidden");
+  refs.detailPanel.exportButton?.classList.add("hidden");
+  refs.detailPanel.breadcrumbEl?.classList.add("hidden");
+
+  win
+    .querySelectorAll(".spotlight-button, [data-action='compare']")
+    .forEach((button) => button.classList.add("hidden"));
+  bindDataCenterInteractions(win, payload);
+}
+
+function parseCsvText(text) {
+  const rows = [];
+  let row = [];
+  let value = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      value += '"';
+      i += 1;
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      row.push(value.trim());
+      value = "";
+      continue;
+    }
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") i += 1;
+      row.push(value.trim());
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+      value = "";
+      continue;
+    }
+    value += char;
+  }
+  row.push(value.trim());
+  if (row.some((cell) => cell !== "")) rows.push(row);
+  return rows;
+}
+
+function normalizeImportedHeaders(headers) {
+  const seen = new Map();
+  return headers.map((header, index) => {
+    const raw = String(header ?? "").trim();
+    const fallback = `field_${index + 1}`;
+    const base = raw || fallback;
+    const count = seen.get(base) || 0;
+    seen.set(base, count + 1);
+    return count ? `${base}_${count + 1}` : base;
+  });
+}
+
+function recordsFromMatrixRows(matrixRows) {
+  const rows = Array.isArray(matrixRows) ? matrixRows.slice() : [];
+  const headers = normalizeImportedHeaders(rows.shift() || []);
+  const records = rows
+    .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? "").trim()))
+    .map((row) =>
+      Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])),
+    );
+  return { columns: headers, records };
+}
+
+function parseCsvRecords(text) {
+  if (window.Papa?.parse) {
+    const result = window.Papa.parse(text, {
+      skipEmptyLines: "greedy",
+      dynamicTyping: false,
+    });
+    const parsed = recordsFromMatrixRows(result.data || []);
+    return { ...parsed, parserName: "Papa Parse" };
+  }
+  return { ...recordsFromMatrixRows(parseCsvText(text)), parserName: "Local CSV parser" };
+}
+
+function serializeImportedCell(value) {
+  if (value == null) return "";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch (_) {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+function normalizeImportedRecord(record, columns) {
+  return Object.fromEntries(
+    columns.map((column) => [column, serializeImportedCell(record?.[column])]),
+  );
+}
+
+function compactImportedRecords(records, columns, limit = 12) {
+  return records.slice(0, limit).map((record) => normalizeImportedRecord(record, columns));
+}
+
+function normalizedColumnName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizedColumnTokens(value) {
+  return normalizedColumnName(value).split("_").filter(Boolean);
+}
+
+function hasNamePart(profile, parts) {
+  const normalized = profile.normalized || "";
+  const tokens = profile.tokens || [];
+  return parts.some((part) => tokens.includes(part) || normalized.includes(part));
+}
+
+function isBlankImportedValue(value) {
+  return String(value ?? "").trim() === "";
+}
+
+function parseNumberLike(value) {
+  const raw = serializeImportedCell(value).trim();
+  if (!raw) return null;
+  const negative = raw.startsWith("(") && raw.endsWith(")");
+  let cleaned = raw.replace(/[^\d,.\-]/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === ",")
+    return null;
+  const comma = cleaned.lastIndexOf(",");
+  const dot = cleaned.lastIndexOf(".");
+  if (comma >= 0 && dot >= 0) {
+    cleaned =
+      comma > dot
+        ? cleaned.replace(/\./g, "").replace(",", ".")
+        : cleaned.replace(/,/g, "");
+  } else if (comma >= 0) {
+    const decimalPlaces = cleaned.length - comma - 1;
+    cleaned =
+      decimalPlaces > 0 && decimalPlaces <= 2
+        ? cleaned.replace(",", ".")
+        : cleaned.replace(/,/g, "");
+  }
+  const number = Number(cleaned);
+  if (!Number.isFinite(number)) return null;
+  return negative ? -Math.abs(number) : number;
+}
+
+function parseDateLike(value) {
+  const raw = serializeImportedCell(value).trim();
+  if (!raw) return null;
+  const iso = raw.match(/^(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3] || 1);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    )
+      return date;
+  }
+  const local = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (local) {
+    const first = Number(local[1]);
+    const second = Number(local[2]);
+    const year = Number(local[3].length === 2 ? `20${local[3]}` : local[3]);
+    const day = first > 12 ? first : second > 12 ? second : first;
+    const month = first > 12 ? second : second > 12 ? first : second;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() === month - 1 &&
+      date.getUTCDate() === day
+    )
+      return date;
+  }
+  const parsed = Date.parse(raw);
+  if (!Number.isNaN(parsed)) return new Date(parsed);
+  return null;
+}
+
+function parseBooleanLike(value) {
+  const raw = serializeImportedCell(value).trim().toLowerCase();
+  if (!raw) return null;
+  if (["true", "false", "yes", "no", "y", "n", "1", "0"].includes(raw))
+    return raw;
+  return null;
+}
+
+function inferImportedColumnRole(profile) {
+  if (profile.type === "date" || hasNamePart(profile, ["date", "month", "period", "created", "updated", "closed", "paid"]))
+    return "date";
+  if (
+    hasNamePart(profile, [
+      "amount",
+      "revenue",
+      "sales",
+      "total",
+      "price",
+      "spend",
+      "cost",
+      "billed",
+      "billing",
+      "invoice",
+      "payment",
+      "profit",
+      "margin",
+      "value",
+    ])
+  )
+    return "amount";
+  if (hasNamePart(profile, ["quantity", "qty", "units", "count", "score"]))
+    return "measure";
+  if (
+    profile.tokens.includes("id") ||
+    profile.normalized.endsWith("_id") ||
+    hasNamePart(profile, ["uuid", "key", "sku", "order_id", "customer_id", "account_id", "ticket_id"])
+  )
+    return "id";
+  if (hasNamePart(profile, ["status", "stage", "state"])) return "status";
+  if (hasNamePart(profile, ["email", "mail"])) return "email";
+  if (
+    hasNamePart(profile, [
+      "customer",
+      "account",
+      "client",
+      "company",
+      "product",
+      "item",
+      "campaign",
+      "supplier",
+      "vendor",
+    ])
+  )
+    return "entity";
+  if (
+    hasNamePart(profile, [
+      "category",
+      "segment",
+      "channel",
+      "city",
+      "country",
+      "region",
+      "type",
+      "tier",
+      "priority",
+      "source",
+    ])
+  )
+    return "category";
+  if (profile.type === "category") return "category";
+  if (profile.type === "number") return "measure";
+  if (profile.type === "boolean") return "status";
+  return "text";
+}
+
+function inferImportedColumnProfile(column, records) {
+  const values = records.map((record) => serializeImportedCell(record?.[column]));
+  const nonBlank = values.filter((value) => !isBlankImportedValue(value));
+  const normalized = normalizedColumnName(column);
+  const tokens = normalizedColumnTokens(column);
+  const uniqueValues = new Set(nonBlank.map((value) => value.trim()));
+  const sample = Array.from(uniqueValues).slice(0, 3);
+  const numericValues = nonBlank
+    .map(parseNumberLike)
+    .filter((value) => value != null);
+  const dateValues = nonBlank.map(parseDateLike).filter(Boolean);
+  const booleanValues = nonBlank
+    .map(parseBooleanLike)
+    .filter((value) => value != null);
+  const tested = Math.max(nonBlank.length, 1);
+  const numberRatio = numericValues.length / tested;
+  const dateRatio = dateValues.length / tested;
+  const booleanRatio = booleanValues.length / tested;
+  let type = "text";
+  if (nonBlank.length === 0) type = "empty";
+  else if (dateRatio >= 0.72 && numericValues.length !== nonBlank.length)
+    type = "date";
+  else if (numberRatio >= 0.78) type = "number";
+  else if (booleanRatio >= 0.9) type = "boolean";
+  else if (uniqueValues.size <= Math.max(12, Math.ceil(nonBlank.length * 0.18)))
+    type = "category";
+  const profile = {
+    column,
+    normalized,
+    tokens,
+    type,
+    rowCount: records.length,
+    nonBlankCount: nonBlank.length,
+    nullCount: values.length - nonBlank.length,
+    uniqueCount: uniqueValues.size,
+    uniqueRatio: nonBlank.length ? uniqueValues.size / nonBlank.length : 0,
+    completeness: records.length ? nonBlank.length / records.length : 0,
+    sample,
+    numericMin: numericValues.length ? Math.min(...numericValues) : null,
+    numericMax: numericValues.length ? Math.max(...numericValues) : null,
+    numericAvg: numericValues.length
+      ? numericValues.reduce((total, value) => total + value, 0) /
+        numericValues.length
+      : null,
+  };
+  profile.role = inferImportedColumnRole(profile);
+  profile.confidence = Math.round(
+    Math.min(
+      99,
+      42 +
+        profile.completeness * 25 +
+        (profile.type !== "text" ? 18 : 0) +
+        (profile.role !== "text" ? 14 : 0),
+    ),
+  );
+  return profile;
+}
+
+function scoreImportedDatasetKind(profiles, rules) {
+  return rules.reduce((score, rule) => {
+    const matched = profiles.some((profile) => {
+      if (rule.roles?.includes(profile.role)) return true;
+      return rule.names ? hasNamePart(profile, rule.names) : false;
+    });
+    return score + (matched ? rule.points : 0);
+  }, 0);
+}
+
+function inferImportedDatasetKind(profiles) {
+  const rules = [
+    {
+      key: "sales_orders",
+      label: "Sales / Orders",
+      rules: [
+        { roles: ["date"], points: 22 },
+        { roles: ["amount"], points: 30 },
+        { names: ["order", "orders"], points: 20 },
+        { names: ["customer", "product"], points: 12 },
+      ],
+    },
+    {
+      key: "customers_accounts",
+      label: "Customers / Accounts",
+      rules: [
+        { names: ["customer", "account", "client", "company"], points: 34 },
+        { roles: ["email"], points: 16 },
+        { names: ["city", "region", "segment", "tier"], points: 18 },
+        { roles: ["id"], points: 12 },
+      ],
+    },
+    {
+      key: "products_catalog",
+      label: "Products / Catalog",
+      rules: [
+        { names: ["product", "sku", "item"], points: 34 },
+        { names: ["category", "brand"], points: 18 },
+        { names: ["price", "cost"], points: 20 },
+      ],
+    },
+    {
+      key: "marketing_campaigns",
+      label: "Marketing Campaigns",
+      rules: [
+        { names: ["campaign", "channel", "utm"], points: 36 },
+        { names: ["spend", "budget", "impressions", "clicks"], points: 28 },
+        { roles: ["date"], points: 16 },
+      ],
+    },
+    {
+      key: "support_tickets",
+      label: "Support Tickets",
+      rules: [
+        { names: ["ticket", "case"], points: 34 },
+        { names: ["priority", "status", "sla"], points: 22 },
+        { names: ["opened", "closed", "agent"], points: 18 },
+      ],
+    },
+    {
+      key: "billing_finance",
+      label: "Billing / Finance",
+      rules: [
+        { names: ["invoice", "billing", "payment"], points: 34 },
+        { roles: ["amount"], points: 28 },
+        { roles: ["date"], points: 14 },
+      ],
+    },
+  ];
+  const scored = rules
+    .map((rule) => ({
+      key: rule.key,
+      label: rule.label,
+      score: scoreImportedDatasetKind(profiles, rule.rules),
+    }))
+    .sort((left, right) => right.score - left.score);
+  const best = scored[0] || { key: "generic_table", label: "Generic Table", score: 0 };
+  if (best.score < 34) {
+    return {
+      key: "generic_table",
+      label: "Generic Table",
+      confidence: 58,
+      reason: "No strong business-domain pattern was detected yet.",
+    };
+  }
+  return {
+    key: best.key,
+    label: best.label,
+    confidence: Math.min(96, 52 + best.score),
+    reason: `Detected ${best.label.toLowerCase()} signals from column names, types, and field roles.`,
+  };
+}
+
+function bestImportedProfile(profiles, predicate) {
+  return profiles
+    .filter(predicate)
+    .sort(
+      (left, right) =>
+        right.confidence +
+        right.completeness * 25 +
+        right.uniqueRatio * 8 -
+        (left.confidence + left.completeness * 25 + left.uniqueRatio * 8),
+    )[0];
+}
+
+function buildImportedMappings(profiles, datasetKind) {
+  const rows = [
+    {
+      role: "Date / Period",
+      profile: bestImportedProfile(profiles, (profile) => profile.role === "date"),
+      why: "Time slicing and trend views.",
+    },
+    {
+      role: "Value Metric",
+      profile: bestImportedProfile(profiles, (profile) =>
+        ["amount", "measure"].includes(profile.role),
+      ),
+      why: "Primary numeric measure for charts.",
+    },
+    {
+      role: "Entity ID",
+      profile: bestImportedProfile(profiles, (profile) => profile.role === "id"),
+      why: "Duplicate checks and future warehouse key.",
+    },
+    {
+      role: "Entity Name",
+      profile: bestImportedProfile(profiles, (profile) => profile.role === "entity"),
+      why: "Human-readable drilldown label.",
+    },
+    {
+      role: "Category",
+      profile: bestImportedProfile(profiles, (profile) => profile.role === "category"),
+      why: "Breakdowns, bars, and filters.",
+    },
+    {
+      role: "Status",
+      profile: bestImportedProfile(profiles, (profile) => profile.role === "status"),
+      why: "Operational segmentation.",
+    },
+  ];
+  return rows.map((row) => ({
+    role: row.role,
+    column: row.profile?.column || "",
+    confidence: row.profile?.confidence || 0,
+    note: row.profile
+      ? row.why
+      : `Not enough evidence in this ${datasetKind.label.toLowerCase()} preview.`,
+  }));
+}
+
+function buildImportedQuality(records, columns, profiles) {
+  const rowCount = records.length;
+  const fieldCount = columns.length;
+  const totalCells = Math.max(rowCount * fieldCount, 1);
+  const nullCells = profiles.reduce((total, profile) => total + profile.nullCount, 0);
+  const keyCandidate =
+    bestImportedProfile(profiles, (profile) => profile.role === "id") ||
+    bestImportedProfile(profiles, (profile) => profile.uniqueRatio > 0.72);
+  const duplicateCount = keyCandidate
+    ? Math.max(0, rowCount - keyCandidate.uniqueCount)
+    : 0;
+  const missingRate = nullCells / totalCells;
+  const duplicateRate = rowCount ? duplicateCount / rowCount : 0;
+  const typedFields = profiles.filter(
+    (profile) => !["text", "empty"].includes(profile.type),
+  ).length;
+  const qualityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        100 -
+          missingRate * 45 -
+          duplicateRate * 35 -
+          Math.max(0, fieldCount - typedFields) * 1.6,
+      ),
+    ),
+  );
+  return {
+    rowCount,
+    fieldCount,
+    nullCells,
+    missingRate,
+    duplicateCount,
+    keyCandidate: keyCandidate?.column || "",
+    typedFields,
+    qualityScore,
+  };
+}
+
+function importedPeriodLabel(date) {
+  if (!date) return "";
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function buildImportedAutoView(records, profiles) {
+  const dateProfile = bestImportedProfile(profiles, (profile) => profile.role === "date");
+  const measureProfile = bestImportedProfile(profiles, (profile) =>
+    ["amount", "measure"].includes(profile.role),
+  );
+  const categoryProfile =
+    bestImportedProfile(profiles, (profile) => profile.role === "category") ||
+    bestImportedProfile(profiles, (profile) => profile.role === "entity");
+
+  if (dateProfile && measureProfile) {
+    const grouped = new Map();
+    records.forEach((record) => {
+      const label = importedPeriodLabel(parseDateLike(record[dateProfile.column]));
+      const value = parseNumberLike(record[measureProfile.column]);
+      if (!label || value == null) return;
+      grouped.set(label, (grouped.get(label) || 0) + value);
+    });
+    return {
+      title: `${measureProfile.column} by ${dateProfile.column}`,
+      subtitle: "Automatic trend from detected date and value fields.",
+      type: "trend",
+      rows: Array.from(grouped.entries())
+        .sort(([left], [right]) => left.localeCompare(right))
+        .slice(-12)
+        .map(([label, value]) => ({ label, value })),
+    };
+  }
+  if (categoryProfile && measureProfile) {
+    const grouped = new Map();
+    records.forEach((record) => {
+      const label = serializeImportedCell(record[categoryProfile.column]).trim();
+      const value = parseNumberLike(record[measureProfile.column]);
+      if (!label || value == null) return;
+      grouped.set(label, (grouped.get(label) || 0) + value);
+    });
+    return {
+      title: `${measureProfile.column} by ${categoryProfile.column}`,
+      subtitle: "Automatic ranking from detected category and value fields.",
+      type: "bar",
+      rows: Array.from(grouped.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 10)
+        .map(([label, value]) => ({ label, value })),
+    };
+  }
+  if (categoryProfile) {
+    const grouped = new Map();
+    records.forEach((record) => {
+      const label = serializeImportedCell(record[categoryProfile.column]).trim();
+      if (!label) return;
+      grouped.set(label, (grouped.get(label) || 0) + 1);
+    });
+    return {
+      title: `Rows by ${categoryProfile.column}`,
+      subtitle: "Automatic count by detected category field.",
+      type: "count",
+      rows: Array.from(grouped.entries())
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 10)
+        .map(([label, value]) => ({ label, value })),
+    };
+  }
+  return {
+    title: "Column completeness",
+    subtitle: "Fallback profile view when no chart-ready fields are detected.",
+    type: "quality",
+    rows: profiles.slice(0, 10).map((profile) => ({
+      label: profile.column,
+      value: Math.round(profile.completeness * 100),
+    })),
+  };
+}
+
+function analyzeImportedDataset(records, columns) {
+  const profiles = columns.map((column) => inferImportedColumnProfile(column, records));
+  const datasetKind = inferImportedDatasetKind(profiles);
+  const mappingRows = buildImportedMappings(profiles, datasetKind);
+  const quality = buildImportedQuality(records, columns, profiles);
+  const autoView = buildImportedAutoView(records, profiles);
+  return {
+    profiles,
+    datasetKind,
+    mappingRows,
+    quality,
+    autoView,
+    importNote:
+      "Preview import: profiled and mapped in the workspace, but not promoted into official KPI models.",
+  };
+}
+
+function buildLocalImportPreview({
+  fileName,
+  type,
+  typeLabel,
+  columns,
+  records,
+  parserName,
+}) {
+  const safeColumns = normalizeImportedHeaders(columns || []);
+  const safeRecords = records.map((record) => normalizeImportedRecord(record, safeColumns));
+  const analysis = analyzeImportedDataset(safeRecords, safeColumns);
+  return {
+    id: `local:${fileName}`,
+    name: fileName,
+    type,
+    typeLabel,
+    parserName,
+    status: "Preview",
+    createdAt: isoNow(),
+    rowCount: safeRecords.length,
+    columns: safeColumns,
+    rows: compactImportedRecords(safeRecords, safeColumns, 12),
+    analysis,
+  };
+}
+
+function previewFromCsv(fileName, text) {
+  const parsed = parseCsvRecords(text);
+  return buildLocalImportPreview({
+    fileName,
+    type: "file_csv",
+    typeLabel: "CSV file",
+    columns: parsed.columns,
+    records: parsed.records,
+    parserName: parsed.parserName,
+  });
+}
+
+function previewFromJson(fileName, text) {
+  const parsed = JSON.parse(text);
+  const records = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.records)
+      ? parsed.records
+      : [parsed];
+  const objects = records.filter((item) => item && typeof item === "object");
+  const columns = Array.from(
+    objects.reduce((set, item) => {
+      Object.keys(item).forEach((key) => set.add(key));
+      return set;
+    }, new Set()),
+  );
+  return buildLocalImportPreview({
+    fileName,
+    type: "file_json",
+    typeLabel: "JSON file",
+    columns,
+    records: objects,
+    parserName: "Native JSON parser",
+  });
+}
+
+function findImportedDataset(datasetId) {
+  return (
+    state.importedDatasets.find((dataset) => dataset.id === datasetId) ||
+    (state.localFilePreview?.id === datasetId ? state.localFilePreview : null)
+  );
+}
+
+function upsertImportedDataset(dataset) {
+  state.importedDatasets = [
+    dataset,
+    ...state.importedDatasets.filter((item) => item.id !== dataset.id),
+  ].slice(0, 8);
+  state.localFilePreview = dataset;
+  persistImportedDatasets();
+}
+
+function formatImportedNumber(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return "-";
+  return number.toLocaleString("en-US", {
+    maximumFractionDigits: Math.abs(number) >= 100 ? 0 : 2,
+  });
+}
+
+function importedQualityCards(dataset) {
+  const quality = dataset.analysis?.quality || {};
+  return [
+    {
+      title: "Rows",
+      value: formatSourceCount(quality.rowCount ?? dataset.rowCount),
+      subtitle: "Detected in uploaded file",
+    },
+    {
+      title: "Fields",
+      value: formatSourceCount(quality.fieldCount ?? dataset.columns?.length),
+      subtitle: `${formatSourceCount(quality.typedFields || 0)} typed automatically`,
+    },
+    {
+      title: "Quality",
+      value: `${quality.qualityScore ?? "-"} / 100`,
+      subtitle: `${formatSourceCount(quality.nullCells || 0)} blank cells found`,
+    },
+    {
+      title: "Duplicates",
+      value: formatSourceCount(quality.duplicateCount || 0),
+      subtitle: quality.keyCandidate
+        ? `Checked against ${quality.keyCandidate}`
+        : "No key candidate yet",
+    },
+  ];
+}
+
+function importedProfileTablePayload(dataset) {
+  return {
+    title: "Column Profile",
+    columns: [
+      { key: "column", label: "Column" },
+      { key: "type", label: "Type" },
+      { key: "role", label: "Role" },
+      { key: "complete", label: "Complete" },
+      { key: "unique", label: "Unique" },
+      { key: "sample", label: "Sample" },
+    ],
+    rows: (dataset.analysis?.profiles || []).map((profile) => ({
+      values: {
+        column: profile.column,
+        type: profile.type,
+        role: profile.role,
+        complete: `${Math.round(profile.completeness * 100)}%`,
+        unique: formatSourceCount(profile.uniqueCount),
+        sample: profile.sample.join(", "),
+      },
+    })),
+  };
+}
+
+function importedMappingTablePayload(dataset) {
+  return {
+    title: "Suggested Mapping",
+    columns: [
+      { key: "role", label: "Role" },
+      { key: "column", label: "Column" },
+      { key: "confidence", label: "Confidence" },
+      { key: "note", label: "Use" },
+    ],
+    rows: (dataset.analysis?.mappingRows || []).map((row) => ({
+      values: {
+        role: row.role,
+        column: row.column || "Not detected",
+        confidence: row.confidence ? `${row.confidence}%` : "-",
+        note: row.note,
+      },
+    })),
+  };
+}
+
+function importedPreviewTablePayload(dataset) {
+  return {
+    title: `${dataset.name} preview`,
+    columns: (dataset.columns || []).map((column) => ({ key: column, label: column })),
+    rows: (dataset.rows || []).map((row) => ({ values: row })),
+  };
+}
+
+function renderImportedAutoView(dataset) {
+  const autoView = dataset.analysis?.autoView;
+  if (!autoView?.rows?.length)
+    return renderStateCard({
+      title: "No chart-ready fields",
+      message: "The profile is still useful, but this file needs clearer date, category, or numeric columns for an automatic chart.",
+      stateType: "empty",
+    });
+  const maxValue = Math.max(...autoView.rows.map((row) => Number(row.value || 0)), 1);
+  return `
+    <div class="import-chart" data-chart-type="${escapeHtml(autoView.type)}">
+      ${autoView.rows
+        .map((row) => {
+          const width = Math.max(3, (Number(row.value || 0) / maxValue) * 100);
+          return `
+            <div class="import-chart-row">
+              <span title="${escapeHtml(row.label)}">${escapeHtml(truncateMiddle(row.label, 34))}</span>
+              <div class="import-chart-bar"><i style="width:${width}%"></i></div>
+              <strong>${escapeHtml(formatImportedNumber(row.value))}</strong>
+            </div>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderImportedDatasetBody(dataset) {
+  const analysis = dataset.analysis || {};
+  const kind = analysis.datasetKind || { label: "Imported Table", confidence: 0 };
+  return `
+    <div class="imported-dataset-shell">
+      <section class="import-banner">
+        <div>
+          <span>Preview import</span>
+          <strong>${escapeHtml(dataset.name)}</strong>
+          <p>${escapeHtml(kind.reason || "The file was profiled automatically and is isolated from official KPI models.")}</p>
+        </div>
+        <div class="import-banner-status">
+          <b>${escapeHtml(kind.label)}</b>
+          <span>${escapeHtml(String(kind.confidence || 0))}% confidence</span>
+        </div>
+      </section>
+      <div class="import-wizard">
+        <article><b>1</b><span>Parsed with ${escapeHtml(dataset.parserName || "local parser")}</span></article>
+        <article><b>2</b><span>${escapeHtml(formatSourceCount(dataset.rowCount))} rows profiled</span></article>
+        <article><b>3</b><span>Mapping suggested</span></article>
+        <article><b>4</b><span>Preview only</span></article>
+      </div>
+      <section class="lab-kpis imported-quality-grid">
+        ${importedQualityCards(dataset)
+          .map(
+            (card) => `
+              <article class="lab-card">
+                <p class="lab-card-title">${escapeHtml(card.title)}</p>
+                <p class="lab-card-value">${escapeHtml(card.value)}</p>
+                <div class="lab-card-meta"><span>${escapeHtml(card.subtitle)}</span></div>
+              </article>
+            `,
+          )
+          .join("")}
+      </section>
+      <div class="lab-grid imported-grid">
+        <section class="lab-panel">
+          <div class="lab-panel-head">
+            <strong>Suggested Mapping</strong>
+            <span>Editable promotion would happen in a governed load step.</span>
+          </div>
+          ${buildTableHtml(importedMappingTablePayload(dataset), null)}
+        </section>
+        <section class="lab-panel">
+          <div class="lab-panel-head">
+            <strong>${escapeHtml(analysis.autoView?.title || "Auto View")}</strong>
+            <span>${escapeHtml(analysis.autoView?.subtitle || "Generated from the detected fields.")}</span>
+          </div>
+          ${renderImportedAutoView(dataset)}
+        </section>
+      </div>
+      <section class="lab-panel">
+        <div class="lab-panel-head">
+          <strong>Column Profile</strong>
+          <div class="lab-panel-head-side">
+            <span>Types, roles, blanks, uniqueness, and samples.</span>
+            <button class="toolbar-button toolbar-button--micro" type="button" data-action="export-import-profile">Export profile CSV</button>
+          </div>
+        </div>
+        ${buildTableHtml(importedProfileTablePayload(dataset), 40)}
+      </section>
+      <section class="lab-panel">
+        <div class="lab-panel-head">
+          <strong>Data Preview</strong>
+          <div class="lab-panel-head-side">
+            <span>The imported data is isolated from official dashboards.</span>
+            <button class="toolbar-button toolbar-button--micro" type="button" data-action="back-to-data-center">Back to Data Center</button>
+          </div>
+        </div>
+        ${buildTableHtml(importedPreviewTablePayload(dataset), 12)}
+      </section>
+    </div>
+  `;
+}
+
+function buildImportedDatasetWindowMarkup(windowId, dataset) {
+  return buildUtilityWindowMarkup({
+    id: windowId,
+    title: "Imported Dataset",
+    iconClass: "task-mark--data-center",
+    kind: "imported_dataset",
+    width: 1020,
+    height: 720,
+    minWidth: 760,
+    minHeight: 520,
+    body: `<div data-role="imported-dataset-body">${renderImportedDatasetBody(dataset)}</div>`,
+  });
+}
+
+function renderImportedDatasetWindow(windowId) {
+  const win = document.querySelector(`.window[data-window-id="${windowId}"]`);
+  if (!win) return;
+  const dataset = findImportedDataset(win.dataset.importId);
+  const body = win.querySelector('[data-role="imported-dataset-body"]');
+  const status = win.querySelector('[data-role="status"]');
+  if (!dataset) {
+    if (status) status.textContent = "Imported dataset unavailable";
+    if (body)
+      body.innerHTML = renderStateCard({
+        title: "Imported dataset unavailable",
+        message: "Open Data Center and upload the file again to rebuild this preview.",
+        stateType: "empty",
+      });
+    return;
+  }
+  if (status)
+    status.textContent = `${dataset.analysis?.datasetKind?.label || "Imported table"} | Preview only`;
+  if (body) body.innerHTML = renderImportedDatasetBody(dataset);
+  win.querySelector('[data-action="back-to-data-center"]')?.addEventListener(
+    "click",
+    () => openWindow("data_center"),
+  );
+  win.querySelector('[data-action="export-import-profile"]')?.addEventListener(
+    "click",
+    () => {
+      const rows = [
+        ["column", "type", "role", "completeness", "unique_count", "sample"],
+        ...(dataset.analysis?.profiles || []).map((profile) => [
+          profile.column,
+          profile.type,
+          profile.role,
+          `${Math.round(profile.completeness * 100)}%`,
+          profile.uniqueCount,
+          profile.sample.join(" | "),
+        ]),
+      ];
+      downloadCsv(`${slugify(dataset.name)}-profile.csv`, rows);
+    },
+  );
+}
+
+function openImportedDatasetWindow(datasetId = "") {
+  const dataset = findImportedDataset(datasetId || state.localFilePreview?.id);
+  if (!dataset) return;
+  const existing = Array.from(
+    document.querySelectorAll('.window[data-window-kind="imported_dataset"]'),
+  ).find((win) => win.dataset.importId === dataset.id);
+  if (existing) {
+    openWindow(existing.dataset.windowId);
+    renderImportedDatasetWindow(existing.dataset.windowId);
+    return;
+  }
+  const windowId = `imported-${slugify(dataset.id) || Date.now()}`;
+  elements.windowsLayer.insertAdjacentHTML(
+    "beforeend",
+    buildImportedDatasetWindowMarkup(windowId, dataset),
+  );
+  const win = document.querySelector(`.window[data-window-id="${windowId}"]`);
+  win.dataset.importId = dataset.id;
+  bindDynamicWindowChrome(win, () => renderImportedDatasetWindow(windowId));
+  elements.tasks.insertAdjacentHTML(
+    "beforeend",
+    createTaskButtonHtml(windowId, "Imported Dataset", "task-mark--data-center"),
+  );
+  bindTaskButton(elements.tasks.querySelector(`[data-task="${windowId}"]`));
+  openWindow(windowId);
+}
+
+function handleLocalFile(file, win, payload) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const text = String(reader.result || "");
+      const lowerName = file.name.toLowerCase();
+      const preview = lowerName.endsWith(".json")
+        ? previewFromJson(file.name, text)
+        : previewFromCsv(file.name, text);
+      upsertImportedDataset(preview);
+      setSourceConnected(preview.id, true);
+      renderDataCenterWindow(win, payload);
+      openImportedDatasetWindow(preview.id);
+      elements.taskbarMessage.textContent = `${file.name} was profiled and opened as an imported dataset preview.`;
+    } catch (error) {
+      elements.taskbarMessage.textContent = `Could not preview ${file.name}: ${error.message}`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function bindDataCenterInteractions(win, payload) {
+  win.querySelectorAll("[data-source-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const sourceName = button.dataset.sourceToggle;
+      setSourceConnected(sourceName, !sourceConnected(sourceName));
+      renderDataCenterWindow(win, payload);
+    });
+  });
+  win.querySelectorAll('[data-action="open-imported-analysis"]').forEach((button) => {
+    button.addEventListener("click", () =>
+      openImportedDatasetWindow(button.dataset.importId),
+    );
+  });
+  win.querySelectorAll("[data-connector-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const connector = connectorByKey(button.dataset.connectorKey);
+      if (!connector) return;
+      if (connector.action === "file") {
+        const input = win.querySelector('[data-role="data-file-input"]');
+        if (input) {
+          input.setAttribute("accept", connector.accept || ".csv,.json");
+          input.click();
+        }
+        return;
+      }
+      if (connector.action === "registered" && connector.sourceName) {
+        setSourceConnected(connector.sourceName, true);
+        renderDataCenterWindow(win, payload);
+        return;
+      }
+      if (connector.action === "draft") {
+        state.activeConnectorSetup =
+          state.activeConnectorSetup === connector.key ? "" : connector.key;
+        renderDataCenterWindow(win, payload);
+      }
+    });
+  });
+  win.querySelector('[data-role="data-file-input"]')?.addEventListener(
+    "change",
+    (event) => handleLocalFile(event.target.files?.[0], win, payload),
+  );
+  win.querySelector('[data-action="cancel-connector-setup"]')?.addEventListener(
+    "click",
+    () => {
+      state.activeConnectorSetup = "";
+      renderDataCenterWindow(win, payload);
+    },
+  );
+  win.querySelector('[data-role="connector-setup"]')?.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const formData = new FormData(form);
+      const connector = connectorByKey(form.dataset.connector);
+      const label = String(formData.get("label") || connector?.title || "Source").trim();
+      const location = String(formData.get("location") || "").trim();
+      const target = String(formData.get("target") || "").trim();
+      const primaryKey = String(formData.get("primaryKey") || "").trim();
+      const id = `draft:${form.dataset.connector}:${Date.now()}`;
+      const draft = {
+        name: id,
+        label,
+        source_type: form.dataset.connector,
+        type_label: connector?.title || "Connection draft",
+        connection_group: connector?.type || "Draft",
+        target: target || "Not mapped yet",
+        load_mode: "Draft",
+        primary_key: primaryKey,
+        grain: "Connection draft pending validation",
+        business_purpose: location
+          ? `Draft connection for ${location}.`
+          : "Draft connection created inside the workspace.",
+        columns: primaryKey ? [primaryKey] : [],
+        row_count: 0,
+        duplicate_key_count: 0,
+        loaded_at: "Draft",
+        status: "draft",
+        status_label: "Draft",
+      };
+      state.sourceDrafts.unshift(draft);
+      state.sourceDrafts = state.sourceDrafts.slice(0, 12);
+      persistSourceDrafts();
+      setSourceConnected(id, true);
+      state.activeConnectorSetup = "";
+      renderDataCenterWindow(win, payload);
+    },
+  );
+  win.querySelector('[data-action="clear-local-preview"]')?.addEventListener(
+    "click",
+    () => {
+      if (state.localFilePreview) {
+        setSourceConnected(state.localFilePreview.id, false);
+        state.importedDatasets = state.importedDatasets.filter(
+          (dataset) => dataset.id !== state.localFilePreview.id,
+        );
+        persistImportedDatasets();
+        state.localFilePreview = null;
+      }
+      renderDataCenterWindow(win, payload);
+    },
+  );
+}
+
+function tableRowsAsObjects(tablePayload) {
+  if (!tablePayload?.rows?.length) return [];
+  return tablePayload.rows.map((row) => row.values || {});
+}
+
+function accountHealthStatusClass(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "healthy" || normalized === "stable") return "ok";
+  if (normalized === "watch" || normalized === "support_risk") return "warning";
+  if (normalized === "risk" || normalized === "billing_risk") return "error";
+  return "neutral";
+}
+
+function renderAccountBadge(value) {
+  const css = accountHealthStatusClass(value);
+  return `<span class="account-badge account-badge--${escapeHtml(css)}">${escapeHtml(value || "-")}</span>`;
+}
+
+function numberFromDisplay(value) {
+  return Number(String(value || "0").replaceAll(",", "")) || 0;
+}
+
+function buildAccountTierVisualHtml(tablePayload) {
+  const rows = tableRowsAsObjects(tablePayload);
+  if (!rows.length) return `<div class="lab-empty">No health tier data available.</div>`;
+  const maxAccounts = Math.max(...rows.map((row) => numberFromDisplay(row.accounts)), 1);
+  return `
+    <div class="account-tier-visual">
+      ${rows
+        .map((row) => {
+          const accounts = numberFromDisplay(row.accounts);
+          const score = numberFromDisplay(row.avg_score);
+          const width = Math.max(6, (accounts / maxAccounts) * 100);
+          const css = accountHealthStatusClass(row.tier);
+          return `
+            <article class="account-tier-row account-tier-row--${escapeHtml(css)}">
+              <div class="account-tier-head">
+                ${renderAccountBadge(row.tier)}
+                <strong>${escapeHtml(row.accounts)} accounts</strong>
+                <span>Avg score ${escapeHtml(row.avg_score)}</span>
+              </div>
+              <div class="account-tier-bar" aria-label="${escapeHtml(row.tier)} ${escapeHtml(row.accounts)} accounts">
+                <span style="width: ${width}%"></span>
+              </div>
+              <div class="account-tier-detail">
+                <span><b>${escapeHtml(row.outstanding)}</b> outstanding</span>
+                <span><b>${escapeHtml(row.open_tickets)}</b> open tickets</span>
+                <span><b>${escapeHtml(row.billed)}</b> billed</span>
+                <span><b>${score}</b>/100 score</span>
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function buildAccountDriverVisualHtml(tablePayload) {
+  const grouped = new Map();
+  tableRowsAsObjects(tablePayload).forEach((row) => {
+    const driver = row.driver || "unknown";
+    const current = grouped.get(driver) || { accounts: 0, outstanding: 0 };
+    current.accounts += 1;
+    current.outstanding += numberFromDisplay(row.outstanding);
+    grouped.set(driver, current);
+  });
+  const rows = Array.from(grouped.entries()).sort(
+    (a, b) => b[1].accounts - a[1].accounts || b[1].outstanding - a[1].outstanding,
+  );
+  if (!rows.length) return `<div class="lab-empty">No risk driver data available.</div>`;
+  const maxAccounts = Math.max(...rows.map(([, value]) => value.accounts), 1);
+  return `
+    <div class="account-driver-visual">
+      ${rows
+        .map(([driver, value]) => {
+          const width = Math.max(8, (value.accounts / maxAccounts) * 100);
+          const css = accountHealthStatusClass(driver);
+          return `
+            <article class="account-driver-row account-driver-row--${escapeHtml(css)}">
+              <div class="account-driver-label">
+                ${renderAccountBadge(driver)}
+                <span>${value.accounts} accounts</span>
+              </div>
+              <div class="account-driver-bar">
+                <span style="width: ${width}%"></span>
+              </div>
+              <strong>${value.outstanding.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}</strong>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function buildAccountWatchlistHtml(tablePayload, limit = 12) {
+  if (!tablePayload?.columns?.length || !tablePayload?.rows?.length) {
+    return `<div class="lab-empty">No account watchlist available.</div>`;
+  }
+  const rows = tablePayload.rows.slice(0, limit);
+  return `
+    <div class="account-watchlist">
+      ${rows
+        .map((row) => {
+          const values = row.values || {};
+          const score = Number(values.score || 0);
+          return `
+            <article class="account-watchlist-row account-watchlist-row--${escapeHtml(accountHealthStatusClass(values.tier))}">
+              <div class="account-watchlist-main">
+                <strong title="${escapeHtml(values.account || "")}">${escapeHtml(values.account || "-")}</strong>
+                <span>${escapeHtml(values.owner || "-")} | ${escapeHtml(values.stage || "-")}</span>
+              </div>
+              <div class="account-watchlist-score" aria-label="Health score ${escapeHtml(values.score || "-")}">
+                <span>${escapeHtml(values.score || "-")}</span>
+                <meter min="0" max="100" low="70" high="85" optimum="100" value="${escapeHtml(String(score))}"></meter>
+              </div>
+              <div class="account-watchlist-tags">
+                ${renderAccountBadge(values.tier)}
+                ${renderAccountBadge(values.driver)}
+              </div>
+              <div class="account-watchlist-metrics">
+                <span><b>${escapeHtml(values.outstanding || "0.00")}</b> outstanding</span>
+                <span><b>${escapeHtml(values.open_tickets || "0")}</b> open tickets</span>
+                <span><b>${escapeHtml(values.billed || "0.00")}</b> billed</span>
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderAccountTierPlot(plotEl, payload) {
+  if (!plotEl || typeof Plotly === "undefined") return false;
+  const rows = tableRowsAsObjects(payload.tier_table);
+  if (!rows.length) return false;
+  const theme = themeConfig();
+  const labels = rows.map((row) => row.tier);
+  const accountCounts = rows.map((row) => Number(String(row.accounts).replaceAll(",", "")) || 0);
+  const outstanding = rows.map((row) => Number(String(row.outstanding).replaceAll(",", "")) || 0);
+  const avgScore = rows.map((row) => Number(row.avg_score) || 0);
+  const colors = labels.map((tier) => {
+    const css = accountHealthStatusClass(tier);
+    if (css === "error") return theme.danger;
+    if (css === "warning") return theme.accent;
+    return theme.positive;
+  });
+
+  Plotly.react(
+    plotEl,
+    [
+      {
+        type: "bar",
+        name: "Accounts",
+        x: labels,
+        y: accountCounts,
+        marker: { color: colors },
+        customdata: rows.map((row, index) => [
+          row.avg_score,
+          outstanding[index],
+          row.open_tickets,
+          row.billed,
+        ]),
+        hovertemplate:
+          "<b>%{x}</b><br>Accounts: %{y:,.0f}<br>Avg Score: %{customdata[0]}<br>Outstanding: %{customdata[1]:,.2f}<br>Open Tickets: %{customdata[2]}<br>Billed: %{customdata[3]}<extra></extra>",
+      },
+      {
+        type: "scatter",
+        mode: "lines+markers",
+        name: "Avg Score",
+        x: labels,
+        y: avgScore,
+        yaxis: "y2",
+        line: { color: theme.current, width: 3 },
+        marker: { size: 8, color: theme.current },
+        hovertemplate: "<b>%{x}</b><br>Avg Score: %{y:.0f}<extra></extra>",
+      },
+    ],
+    basePlotLayout({
+      xTitle: "Health Tier",
+      yTitle: "Accounts",
+      metricFormat: "number",
+      plotEl,
+      extra: {
+        margin: { l: 58, r: 58, t: 18, b: 58 },
+        yaxis: { rangemode: "tozero", dtick: 1 },
+        yaxis2: {
+          title: { text: "Avg Score", standoff: 10 },
+          overlaying: "y",
+          side: "right",
+          range: [0, 100],
+          color: theme.current,
+          tickfont: { size: 11 },
+          zeroline: false,
+        },
+        legend: {
+          orientation: "h",
+          x: 0,
+          y: 1.14,
+          xanchor: "left",
+          font: { color: theme.text, size: 11 },
+        },
+      },
+    }),
+    { responsive: true, displaylogo: false },
+  );
+  return true;
+}
+
+function renderAccountDriverPlot(plotEl, payload) {
+  if (!plotEl || typeof Plotly === "undefined") return false;
+  const rows = tableRowsAsObjects(payload.account_table);
+  if (!rows.length) return false;
+  const theme = themeConfig();
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const driver = row.driver || "unknown";
+    const current = grouped.get(driver) || { accounts: 0, outstanding: 0 };
+    current.accounts += 1;
+    current.outstanding += Number(String(row.outstanding || "0").replaceAll(",", "")) || 0;
+    grouped.set(driver, current);
+  });
+  const points = Array.from(grouped.entries()).sort(
+    (a, b) => b[1].accounts - a[1].accounts || b[1].outstanding - a[1].outstanding,
+  );
+  const labels = points.map(([driver]) => driver);
+  const accounts = points.map(([, value]) => value.accounts);
+  const outstanding = points.map(([, value]) => value.outstanding);
+  Plotly.react(
+    plotEl,
+    [
+      {
+        type: "bar",
+        orientation: "h",
+        name: "Accounts",
+        y: labels,
+        x: accounts,
+        marker: {
+          color: labels.map((driver) => {
+            const css = accountHealthStatusClass(driver);
+            if (css === "error") return theme.danger;
+            if (css === "warning") return theme.accent;
+            return theme.current;
+          }),
+        },
+        customdata: outstanding,
+        hovertemplate:
+          "<b>%{y}</b><br>Accounts: %{x:,.0f}<br>Outstanding: %{customdata:,.2f}<extra></extra>",
+      },
+    ],
+    basePlotLayout({
+      xTitle: "Accounts",
+      yTitle: "Risk Driver",
+      metricFormat: "number",
+      plotEl,
+      showLegend: false,
+      extra: {
+        margin: { l: 116, r: 18, t: 18, b: 46 },
+        xaxis: { rangemode: "tozero", dtick: 1 },
+        yaxis: {
+          automargin: true,
+          tickfont: { size: 11 },
+        },
+      },
+    }),
+    { responsive: true, displaylogo: false },
+  );
+  return true;
+}
+
+function renderAccountHealthWindow(win, payload) {
+  const refs = windowRefs(win);
+  win._payload = payload;
+  win.dataset.loadedPage = "account_health";
+  if (refs.status) {
+    refs.status.textContent =
+      payload.status === "ok"
+        ? `Account Health loaded | ${payload.generated_at || ""}`
+        : "Account Health unavailable";
+  }
+
+  refs.cards.innerHTML = renderSourceHealthCards(payload.cards || []);
+  observeCardValueFit(refs.cards);
+  refs.narrative.innerHTML = renderNarrative({
+    summary: payload.summary || [],
+    insight_note: payload.subtitle,
+  });
+  refs.annotations.innerHTML = renderAnnotations("account_health");
+  refs.breadcrumb.classList.add("hidden");
+  refs.primaryTitle.textContent =
+        payload.tier_table?.title || "Health Tier Summary";
+  refs.primaryMeta.textContent =
+    "Account health tiers from CRM, billing, support, and ecommerce signals";
+  refs.primaryBack.classList.add("hidden");
+  refs.primaryBack.onclick = null;
+  purgePlot(refs.primaryPlot);
+  if (!renderAccountTierPlot(refs.primaryPlot, payload)) {
+    refs.primaryPlot.innerHTML = buildAccountTierVisualHtml(payload.tier_table);
+  }
+
+  refs.secondaryPanel.classList.remove("hidden");
+  refs.secondaryTitle.textContent = "Risk Driver Mix";
+  refs.secondaryMeta.textContent =
+    "How the watchlist splits across billing, support, and stable accounts";
+  purgePlot(refs.secondaryPlot);
+  if (!renderAccountDriverPlot(refs.secondaryPlot, payload)) {
+    refs.secondaryPlot.innerHTML = buildAccountDriverVisualHtml(payload.account_table);
+  }
+
+  refs.tablePanel.classList.remove("hidden");
+  refs.tableTitle.textContent =
+    payload.account_table?.title || "Account Watchlist";
+  refs.tableMeta.textContent = "Lowest score accounts first";
+  refs.table.innerHTML = buildAccountWatchlistHtml(payload.account_table, 12);
+
+  refs.detailPanel.panel.classList.add("hidden");
+  refs.detailPanel.panel.dataset.interactionKey = "";
+  refs.detailPanel.panel.dataset.interactionValue = "";
+  refs.detailPanel.spotlightButton?.classList.add("hidden");
+  refs.detailPanel.exportButton?.classList.add("hidden");
+  refs.detailPanel.breadcrumbEl?.classList.add("hidden");
+
+  win
+    .querySelectorAll(".spotlight-button, [data-action='compare']")
+    .forEach((button) => button.classList.add("hidden"));
 }
 
 function createSpotlightConfig(payload, options = {}) {
@@ -4153,6 +6194,18 @@ function bindWindowSpotlightActions(win, payload) {
 async function loadPageWindow(pageKey, force = false) {
   const win = document.querySelector(`.window[data-window-id="${pageKey}"]`);
   if (!win) return;
+  if (pageKey === "data_center") {
+    await loadDataCenterWindow(win, force);
+    return;
+  }
+  if (pageKey === "source_health") {
+    await loadSourceHealthWindow(win, force);
+    return;
+  }
+  if (pageKey === "account_health") {
+    await loadAccountHealthWindow(win, force);
+    return;
+  }
   const extra = win.dataset.drilldownPeriodKey
     ? { drilldown_period_key: win.dataset.drilldownPeriodKey }
     : {};
@@ -4186,6 +6239,102 @@ async function loadPageWindow(pageKey, force = false) {
       `Failed to load ${pageByKey(pageKey)?.windowLabel || pageKey}`,
       error.message,
     );
+  } finally {
+    if (state.requests.get(requestKey) === controller)
+      state.requests.delete(requestKey);
+  }
+}
+
+async function loadDataCenterWindow(win, force = false) {
+  const requestCacheKey = "data_center";
+  if (!force && state.cache.has(requestCacheKey)) {
+    renderDataCenterWindow(win, state.cache.get(requestCacheKey));
+    return;
+  }
+
+  const requestKey = "page:data_center";
+  state.requests.get(requestKey)?.abort?.();
+  const controller = new AbortController();
+  state.requests.set(requestKey, controller);
+  const statusEl = win.querySelector('[data-role="status"]');
+  if (statusEl) statusEl.textContent = "Loading Data Center...";
+
+  try {
+    const response = await fetch("/api/source-catalog", {
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    const payload = await response.json();
+    state.cache.set(requestCacheKey, payload);
+    if (state.requests.get(requestKey) !== controller) return;
+    renderDataCenterWindow(win, payload);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    renderWindowError(win, "Failed to load Data Center", error.message);
+  } finally {
+    if (state.requests.get(requestKey) === controller)
+      state.requests.delete(requestKey);
+  }
+}
+
+async function loadSourceHealthWindow(win, force = false) {
+  const requestCacheKey = "source_health";
+  if (!force && state.cache.has(requestCacheKey)) {
+    renderSourceHealthWindow(win, state.cache.get(requestCacheKey));
+    return;
+  }
+
+  const requestKey = "page:source_health";
+  state.requests.get(requestKey)?.abort?.();
+  const controller = new AbortController();
+  state.requests.set(requestKey, controller);
+  const statusEl = win.querySelector('[data-role="status"]');
+  if (statusEl) statusEl.textContent = "Loading Source Health...";
+
+  try {
+    const response = await fetch("/api/source-health", {
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    const payload = await response.json();
+    state.cache.set(requestCacheKey, payload);
+    if (state.requests.get(requestKey) !== controller) return;
+    renderSourceHealthWindow(win, payload);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    renderWindowError(win, "Failed to load Source Health", error.message);
+  } finally {
+    if (state.requests.get(requestKey) === controller)
+      state.requests.delete(requestKey);
+  }
+}
+
+async function loadAccountHealthWindow(win, force = false) {
+  const requestCacheKey = "account_health";
+  if (!force && state.cache.has(requestCacheKey)) {
+    renderAccountHealthWindow(win, state.cache.get(requestCacheKey));
+    return;
+  }
+
+  const requestKey = "page:account_health";
+  state.requests.get(requestKey)?.abort?.();
+  const controller = new AbortController();
+  state.requests.set(requestKey, controller);
+  const statusEl = win.querySelector('[data-role="status"]');
+  if (statusEl) statusEl.textContent = "Loading Account Health...";
+
+  try {
+    const response = await fetch("/api/account-health", {
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    const payload = await response.json();
+    state.cache.set(requestCacheKey, payload);
+    if (state.requests.get(requestKey) !== controller) return;
+    renderAccountHealthWindow(win, payload);
+  } catch (error) {
+    if (error.name === "AbortError") return;
+    renderWindowError(win, "Failed to load Account Health", error.message);
   } finally {
     if (state.requests.get(requestKey) === controller)
       state.requests.delete(requestKey);
@@ -4232,6 +6381,10 @@ function refreshOpenWindows(force = false) {
     }
     if (win.dataset.windowKind === "recent") {
       renderRecentWindow(win.dataset.windowId);
+      return;
+    }
+    if (win.dataset.windowKind === "imported_dataset") {
+      renderImportedDatasetWindow(win.dataset.windowId);
       return;
     }
     loadPageWindow(win.dataset.pageKey, force);
@@ -4444,6 +6597,7 @@ function renderDesktop() {
 function applyWindowTheme(themeKey) {
   state.windowTheme = WINDOW_THEMES[themeKey] ? themeKey : "glass";
   elements.desktop.dataset.windowTheme = state.windowTheme;
+  document.body.dataset.windowTheme = state.windowTheme;
   if (elements.windowTheme) elements.windowTheme.value = state.windowTheme;
   savePreferences();
   getOpenWindows().forEach((win) => {
@@ -4457,6 +6611,8 @@ function applyWindowTheme(themeKey) {
       renderActionBoardWindow(win.dataset.windowId);
     else if (win.dataset.windowKind === "recent")
       renderRecentWindow(win.dataset.windowId);
+    else if (win.dataset.windowKind === "imported_dataset")
+      renderImportedDatasetWindow(win.dataset.windowId);
     else loadPageWindow(win.dataset.pageKey, false);
   });
 }
@@ -4502,6 +6658,7 @@ function bindTopControls() {
     setWorkspaceMenu(false);
     openActionBoardWindow();
   });
+  elements.lockWorkspace?.addEventListener("click", lockWorkspace);
   document.addEventListener("click", (event) => {
     if (!elements.workspaceMenu || !elements.workspaceMenuToggle) return;
     if (elements.workspaceMenu.classList.contains("hidden")) return;
@@ -4568,12 +6725,16 @@ async function init() {
   loadPreferences();
   loadOnboardingState();
   const preset = applyQueryPreset();
+  loadSourceConnections();
+  loadSourceDrafts();
   loadWorkspaceCollections();
   elements.desktop.dataset.windowTheme = state.windowTheme;
+  document.body.dataset.windowTheme = state.windowTheme;
   if (elements.windowTheme) elements.windowTheme.value = state.windowTheme;
   if (elements.scenario) elements.scenario.value = state.filters.scenarioMode;
   renderDesktop();
   renderOnboarding();
+  bindLoginScreen();
   bindPointerInteractions();
   bindTopControls();
   try {

@@ -126,6 +126,44 @@ class HealthPayload(BaseModel):
     message: str
 
 
+class SourceHealthCard(BaseModel):
+    key: str
+    title: str
+    value: str
+    subtitle: str
+    status: Literal["ok", "warning", "error", "neutral"] = "neutral"
+
+
+class SourceHealthPayload(BaseModel):
+    status: Literal["ok", "unavailable"]
+    title: str = "Source Health"
+    subtitle: str
+    generated_at: str
+    cards: list[SourceHealthCard] = Field(default_factory=list)
+    loads_table: DetailTablePayload
+    profile_table: DetailTablePayload
+    summary: list[str] = Field(default_factory=list)
+
+
+class AccountHealthCard(BaseModel):
+    key: str
+    title: str
+    value: str
+    subtitle: str
+    status: Literal["ok", "warning", "error", "neutral"] = "neutral"
+
+
+class AccountHealthPayload(BaseModel):
+    status: Literal["ok", "unavailable"]
+    title: str = "Account Health"
+    subtitle: str
+    generated_at: str
+    cards: list[AccountHealthCard] = Field(default_factory=list)
+    tier_table: DetailTablePayload
+    account_table: DetailTablePayload
+    summary: list[str] = Field(default_factory=list)
+
+
 class SemanticMetricDefinition(BaseModel):
     label: str
     description: str

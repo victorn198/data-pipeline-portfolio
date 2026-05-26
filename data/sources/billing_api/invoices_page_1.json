@@ -1,0 +1,33 @@
+{
+  "records": [
+    {
+      "invoice_id": "INV_0001",
+      "customer_id": "CUST_000001",
+      "account_id": "ACC_001",
+      "invoice_date": "2025-01-05",
+      "due_date": "2025-02-04",
+      "paid_at": "2025-01-09T12:35:00",
+      "amount_due": 1290.00,
+      "amount_paid": 1290.00,
+      "currency": "USD",
+      "billing_status": "paid",
+      "payment_method": "card",
+      "subscription_plan": "growth"
+    },
+    {
+      "invoice_id": "INV_0002",
+      "customer_id": "CUST_000044",
+      "account_id": "ACC_002",
+      "invoice_date": "2025-01-18",
+      "due_date": "2025-02-17",
+      "paid_at": null,
+      "amount_due": 840.00,
+      "amount_paid": 0.00,
+      "currency": "USD",
+      "billing_status": "open",
+      "payment_method": "bank_transfer",
+      "subscription_plan": "starter"
+    }
+  ],
+  "next_page": "invoices_page_2.json"
+}

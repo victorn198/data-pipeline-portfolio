@@ -1,0 +1,6 @@
+campaign_id,campaign_name,channel,start_date,end_date,budget,spend,target_city,status
+CMP_001,Back to School Search,paid_search,2025-01-01,2025-01-31,12000,11850,New York,completed
+CMP_002,Loyalty Email Push,email,2025-02-01,2025-02-15,3500,2800,Chicago,completed
+CMP_003,Spring Social Prospecting,paid_social,2025-03-01,2025-03-31,18000,16525,Los Angeles,completed
+CMP_004,Retention Winback,email,2025-04-01,2025-04-30,5000,4725,Houston,completed
+CMP_005,Holiday Preview Display,display,2025-05-01,2025-05-31,22000,14750,Phoenix,active

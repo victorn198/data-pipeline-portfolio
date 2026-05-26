@@ -1,0 +1,86 @@
+version: 1
+sources:
+  - name: marketing_campaigns_csv
+    source_type: file_csv
+    path: data/sources/marketing_campaigns.csv
+    target_schema: raw
+    target_table: marketing_campaigns_raw
+    load_mode: full_refresh
+    primary_key: campaign_id
+    grain: one row per marketing campaign
+    business_purpose: Adds campaign spend context for revenue and acquisition analysis.
+    columns:
+      - name: campaign_id
+      - name: campaign_name
+      - name: channel
+      - name: start_date
+      - name: end_date
+      - name: budget
+      - name: spend
+      - name: target_city
+      - name: status
+
+  - name: support_tickets_json
+    source_type: file_json
+    path: data/sources/support_tickets.json
+    target_schema: raw
+    target_table: support_tickets_raw
+    load_mode: full_refresh
+    primary_key: ticket_id
+    grain: one row per support ticket
+    business_purpose: Adds customer experience and operations context to the portfolio warehouse.
+    columns:
+      - name: ticket_id
+      - name: customer_id
+      - name: opened_at
+      - name: closed_at
+      - name: issue_type
+      - name: priority
+      - name: status
+      - name: satisfaction_score
+
+  - name: crm_accounts_api
+    source_type: api_paginated_json
+    path: data/sources/crm_api/accounts_page_1.json
+    target_schema: raw
+    target_table: crm_accounts_raw
+    load_mode: full_refresh
+    primary_key: account_id
+    grain: one row per CRM account
+    business_purpose: Adds account pipeline context from a paginated CRM-style API source.
+    records_path: records
+    next_page_path: next_page
+    columns:
+      - name: account_id
+      - name: account_name
+      - name: industry
+      - name: owner
+      - name: lifecycle_stage
+      - name: annual_revenue
+      - name: employee_count
+      - name: created_at
+
+  - name: billing_invoices_api
+    source_type: api_paginated_json
+    path: data/sources/billing_api/invoices_page_1.json
+    target_schema: raw
+    target_table: billing_invoices_raw
+    load_mode: full_refresh
+    primary_key: invoice_id
+    grain: one row per customer invoice
+    business_purpose: Adds billing and payment context for revenue operations analysis.
+    records_path: records
+    next_page_path: next_page
+    columns:
+      - name: invoice_id
+      - name: customer_id
+      - name: account_id
+      - name: invoice_date
+      - name: due_date
+      - name: paid_at
+      - name: amount_due
+      - name: amount_paid
+      - name: currency
+      - name: billing_status
+      - name: payment_method
+      - name: subscription_plan

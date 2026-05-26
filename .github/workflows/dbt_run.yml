@@ -20,6 +20,7 @@ jobs:
       POSTGRES_PASSWORD: postgres
       POSTGRES_SCHEMA: raw
       DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/analytics
+      PYTHONPATH: ${{ github.workspace }}
     services:
       postgres:
         image: postgres:16
@@ -78,6 +79,9 @@ jobs:
         env:
           PIPELINE_LOAD_MODE: full_refresh
         run: python scripts/loadsampledata.py
+
+      - name: Load registered source data
+        run: python scripts/load_registered_sources.py
 
       - name: Run dbt deps
         run: dbt deps

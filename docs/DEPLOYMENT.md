@@ -44,6 +44,6 @@ Se quiser expor o endpoint SQL para consultas read-only:
 ## 3. Checklist de producao
 
 - Rodar `dbt test` com sucesso antes de publicar.
-- Confirmar latencia e volume de consulta no Power BI.
+- Confirmar latencia e volume de consulta no dashboard proprio.
 - Monitorar `monitoring.vw_pipeline_operational_kpis` diariamente.
 - Revisar politicas de backup e retention do PostgreSQL.

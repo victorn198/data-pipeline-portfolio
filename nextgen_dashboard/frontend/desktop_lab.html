@@ -8,12 +8,53 @@
             rel="stylesheet"
             href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
         />
-        <link rel="stylesheet" href="/static/desktop_lab.css?v=desktoplab33" />
+        <link rel="stylesheet" href="/static/desktop_lab.css?v=desktoplab36" />
         <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
+        ></script>
         <script defer src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-        <script defer src="/static/desktop_lab.js?v=desktoplab33"></script>
+        <script defer src="/static/desktop_lab.js?v=desktoplab36"></script>
     </head>
     <body>
+        <section
+            class="login-screen"
+            id="login-screen"
+            aria-label="NextGen workspace entry"
+        >
+            <div class="login-shape login-shape--a" aria-hidden="true"></div>
+            <div class="login-shape login-shape--b" aria-hidden="true"></div>
+            <div class="login-panel">
+                <div class="login-avatar" aria-hidden="true">
+                    <div class="login-avatar-mark">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+                <p class="login-kicker">NextGen Analytics</p>
+                <h1>Business Workspace</h1>
+                <label class="login-field">
+                    <span>Workspace</span>
+                    <input
+                        id="login-workspace-input"
+                        type="text"
+                        value="Portfolio Demo"
+                        autocomplete="off"
+                    />
+                </label>
+                <button class="login-enter" id="login-submit" type="button">
+                    Enter workspace
+                </button>
+                <p class="login-note">
+                    Source connections, dashboards, and investigations open
+                    inside the desktop.
+                </p>
+            </div>
+            <div class="login-footer">
+                <span>NextGen Analytics Desktop</span>
+                <button id="login-demo-skip" type="button">Open demo</button>
+            </div>
+        </section>
         <div class="desktop">
             <header class="topbar">
                 <div class="topbar-main">
@@ -167,6 +208,13 @@
                                     >
                                         Actions
                                     </button>
+                                    <button
+                                        class="toolbar-button toolbar-button--micro"
+                                        id="lock-workspace-btn"
+                                        type="button"
+                                    >
+                                        Lock
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -192,7 +240,7 @@
                         </div>
                         <div class="wallpaper-wordmark">
                             <strong>NextGen</strong>
-                            <span>Programmable Analytics</span>
+                            <span>Business Analytics</span>
                         </div>
                     </div>
                     <div class="field-block field-block--a"></div>

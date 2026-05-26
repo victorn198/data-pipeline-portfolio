@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 from uuid import uuid4
+
+
+UTC = timezone.utc
 
 
 class ProposalStoreError(RuntimeError):

@@ -10,7 +10,7 @@ O projeto segue uma abordagem de modelagem em camadas para garantir a separaçã
 
 1.  **Staging**: A primeira camada, onde os dados brutos do schema `RAW` são limpos, padronizados e preparados para transformação. As tarefas incluem renomear colunas, ajustar tipos de dados e realizar testes básicos de qualidade.
 2.  **Intermediate**: A camada intermediária, onde a lógica de negócio principal é aplicada. Modelos aqui podem juntar diferentes fontes de dados, calcular métricas complexas e criar a base para os modelos finais.
-3.  **Marts**: A camada final de apresentação. Consiste em tabelas de fatos e dimensões otimizadas para análise e consumo por ferramentas de Business Intelligence como o Power BI.
+3.  **Marts**: A camada final de apresentação. Consiste em tabelas de fatos e dimensões otimizadas para análise e consumo por ferramentas de Business Intelligence e pela interface analítica do projeto.
 
 ---
 
@@ -30,6 +30,10 @@ Os modelos de staging são a porta de entrada dos dados brutos no pipeline de tr
 -   `stg_customers.sql`: Limpa e padroniza os dados de clientes.
 -   `stg_orders.sql`: Limpa e padroniza os dados de pedidos.
 -   `stg_products.sql`: Limpa e padroniza os dados de produtos.
+-   `stg_marketing_campaigns.sql`: Limpa e padroniza campanhas vindas de fonte CSV registrada.
+-   `stg_support_tickets.sql`: Limpa e padroniza tickets vindos de fonte JSON registrada.
+-   `stg_crm_accounts.sql`: Limpa e padroniza contas vindas de uma fonte API paginada simulada.
+-   `stg_billing_invoices.sql`: Limpa e padroniza invoices vindas de uma fonte API paginada simulada.
 
 ---
 
@@ -64,3 +68,4 @@ A camada final do pipeline, pronta para o consumo analítico. Segue a metodologi
 -   `dim_customer.sql`: Tabela de dimensão contendo todos os atributos dos clientes.
 -   `dim_product.sql`: Tabela de dimensão com os atributos dos produtos.
 -   `fct_sales.sql`: Tabela de fatos principal, registrando cada item de pedido como um evento de venda. Contém métricas como `quantity`, `price` e chaves para as dimensões `customer` e `product`.
+-   `mart_account_health.sql`: Mart operacional no grao de conta CRM, unindo CRM, billing, suporte e ecommerce para criar score de saude, tier de risco, driver principal e watchlist de contas.
