@@ -35,6 +35,30 @@ def _sum_sales(df: pd.DataFrame) -> float:
     return float(df["sales_amount"].sum()) if not df.empty else 0.0
 
 
+def _sum_gross_sales(df: pd.DataFrame) -> float:
+    if df.empty:
+        return 0.0
+    if "gross_sales_amount" in df.columns:
+        return float(df["gross_sales_amount"].sum())
+    return _sum_sales(df)
+
+
+def _sum_cancelled_sales(df: pd.DataFrame) -> float:
+    if df.empty:
+        return 0.0
+    if "cancelled_sales_amount" in df.columns:
+        return float(df["cancelled_sales_amount"].sum())
+    if "status" in df.columns and "gross_sales_amount" in df.columns:
+        mask = df["status"].astype(str).str.lower() == "cancelled"
+        return float(df.loc[mask, "gross_sales_amount"].sum())
+    return 0.0
+
+
+def _cancellation_rate(df: pd.DataFrame) -> float:
+    gross = _sum_gross_sales(df)
+    return _sum_cancelled_sales(df) / gross * 100.0 if gross else 0.0
+
+
 def _orders(df: pd.DataFrame) -> float:
     return float(df["order_id"].nunique()) if not df.empty else 0.0
 
@@ -167,15 +191,17 @@ def build_audit_contexts(repository: SalesRepository | None = None) -> list[Audi
 
     recent_start = max(start_ts, end_ts - pd.Timedelta(days=89))
     all_pages: tuple[PageName, ...] = (
+        "executive",
         "sales",
         "revenue",
+        "marketing",
         "customers",
         "retention",
         "products",
         "operations",
         "predictive",
     )
-    day_pages: tuple[PageName, ...] = ("sales", "revenue", "customers", "products", "operations")
+    day_pages: tuple[PageName, ...] = ("executive", "sales", "revenue", "marketing", "customers", "products", "operations")
 
     return [
         AuditContext("default_month", start_ts, end_ts, [], [], "Month", all_pages),
@@ -204,6 +230,7 @@ def _build_page_payload(
     end_date: pd.Timestamp,
     granularity: str,
     full_df: pd.DataFrame,
+    marketing_df: pd.DataFrame | None = None,
     scenario_mode: ScenarioMode = "Base",
 ) -> DashboardPayload:
     return service.build_payload(
@@ -214,6 +241,7 @@ def _build_page_payload(
         end_date=end_date,
         granularity=granularity,
         full_df=full_df,
+        marketing_df=marketing_df,
         scenario_mode=scenario_mode,
     )
 
@@ -248,10 +276,11 @@ def _audit_predictive_scenarios(
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
     full_df: pd.DataFrame,
+    marketing_df: pd.DataFrame | None,
 ) -> None:
-    conservative = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, "Conservative")
-    base = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, "Base")
-    upside = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, "Upside")
+    conservative = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, marketing_df, "Conservative")
+    base = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, marketing_df, "Base")
+    upside = _build_page_payload(service, "predictive", scoped_df, current_df, start_date, end_date, "Month", full_df, marketing_df, "Upside")
 
     forecast_keys = (
         "next_month_revenue_forecast",
@@ -319,20 +348,46 @@ def _audit_page(
     end_date: pd.Timestamp,
     granularity: str,
     full_df: pd.DataFrame,
+    marketing_df: pd.DataFrame | None = None,
 ) -> dict[str, list[dict[str, object]]]:
-    payload = _build_page_payload(service, page, scoped_df, current_df, start_date, end_date, granularity, full_df)
+    payload = _build_page_payload(service, page, scoped_df, current_df, start_date, end_date, granularity, full_df, marketing_df)
     page_result: dict[str, list[dict[str, object]]] = {
         "card_checks": [],
         "consistency_checks": [],
     }
 
-    if page in {"sales", "revenue", "customers", "products", "operations", "predictive"}:
+    if page in {"executive", "sales", "revenue", "marketing", "customers", "products", "operations", "predictive"}:
         page_current, page_previous, _, _ = range_with_previous(scoped_df, start_date, end_date)
     else:
         page_current = current_df
         page_previous = pd.DataFrame(columns=current_df.columns)
 
-    if page == "sales":
+    if page == "executive":
+        current_rfm = build_rfm_segment_summary(page_current, end_date)
+        previous_rfm = build_rfm_segment_summary(page_previous, start_date - pd.Timedelta(days=1))
+        risk_segments = {"At Risk", "Hibernating"}
+        risk_current = float(current_rfm[current_rfm["segment"].isin(risk_segments)]["revenue"].sum()) if not current_rfm.empty else 0.0
+        risk_previous = float(previous_rfm[previous_rfm["segment"].isin(risk_segments)]["revenue"].sum()) if not previous_rfm.empty else 0.0
+        expected = {
+            "sales_amount": _sum_sales(page_current),
+            "gross_sales_amount": _sum_gross_sales(page_current),
+            "active_customers": _customers(page_current),
+            "revenue_at_risk": risk_current,
+            "cancellation_rate": _cancellation_rate(page_current),
+            "new_customers": _new_customers(full_df, page_current, start_date, end_date),
+        }
+        for key, expected_value in expected.items():
+            actual_value = _get_card(payload, key).value
+            _add_check(page_result["card_checks"], key, actual_value, expected_value, safe_close(actual_value, expected_value))
+        _add_check(
+            page_result["consistency_checks"],
+            "executive_risk_revenue_non_negative",
+            risk_current,
+            ">= 0",
+            risk_current >= 0 and risk_previous >= 0,
+        )
+
+    elif page == "sales":
         expected = {
             "sales_amount": _sum_sales(page_current),
             "orders_count": _orders(page_current),
@@ -366,11 +421,10 @@ def _audit_page(
             )
 
     elif page == "revenue":
-        days = int((end_date - start_date).days) + 1
         expected = {
             "revenue_in_window": _sum_sales(page_current),
-            "revenue_run_rate": (_sum_sales(page_current) / days) if days else 0.0,
-            "average_ticket": _avg_ticket(page_current),
+            "gross_sales_amount": _sum_gross_sales(page_current),
+            "cancellation_rate": _cancellation_rate(page_current),
         }
         for key, expected_value in expected.items():
             actual_value = _get_card(payload, key).value
@@ -379,6 +433,16 @@ def _audit_page(
             actual_value = _get_card(payload, "latest_period_sales").value
             expected_value = payload.trend[-1].current_value
             _add_check(page_result["card_checks"], "latest_period_sales", actual_value, expected_value, safe_close(actual_value, expected_value))
+
+    elif page == "marketing":
+        spend = _get_card(payload, "marketing_spend").value
+        attributed = _get_card(payload, "attributed_revenue").value
+        roas = _get_card(payload, "marketing_roas").value
+        expected_roas = attributed / spend if spend else 0.0
+        _add_check(page_result["card_checks"], "marketing_roas", roas, expected_roas, safe_close(roas, expected_roas))
+        for key in ("marketing_spend", "attributed_revenue", "campaigns_active", "budget_utilization"):
+            actual_value = _get_card(payload, key).value
+            _add_check(page_result["consistency_checks"], f"{key}_non_negative", actual_value, ">= 0", actual_value >= 0)
 
     elif page == "customers":
         active = _customers(page_current)
@@ -471,7 +535,7 @@ def _audit_page(
         customers_card = _get_card(payload, "next_month_active_customers_forecast").value
         _add_check(page_result["consistency_checks"], "predictive_orders_non_negative", orders_card, ">= 0", orders_card >= 0)
         _add_check(page_result["consistency_checks"], "predictive_customers_non_negative", customers_card, ">= 0", customers_card >= 0)
-        _audit_predictive_scenarios(page_result, service, scoped_df, current_df, start_date, end_date, full_df)
+        _audit_predictive_scenarios(page_result, service, scoped_df, current_df, start_date, end_date, full_df, marketing_df)
 
     return page_result
 
@@ -489,6 +553,7 @@ def run_dashboard_audit(
 
     full_df = repository.load_sales_model()
     full_df.attrs["customer_first_purchase"] = repository.customer_first_purchase()
+    marketing_df = repository.load_marketing_model()
     contexts = contexts or build_audit_contexts(repository)
 
     results: dict[str, object] = {"contexts": []}
@@ -510,6 +575,7 @@ def run_dashboard_audit(
                 end_date=context.end_date,
                 granularity=context.granularity,
                 full_df=full_df,
+                marketing_df=marketing_df,
             )
             context_result["pages"][page] = page_result
             for item in page_result["card_checks"]:

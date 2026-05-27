@@ -15,20 +15,24 @@ The project started as a reporting portfolio, but I deliberately pushed it towar
 3. dbt builds staging, marts, snapshots, and tests.
 4. FastAPI exposes governed dashboard payloads.
 5. The frontend consumes those payloads and supports navigation, filtering, drilldown, source selection, and interactive analysis.
-6. The Data Center window makes source connection choices visible to the user
+6. The Executive Scorecard starts from certified KPIs: Net Sales, Gross Sales,
+   active customers, cancellation rate, new customers, and revenue at risk.
+7. The Data Center window makes source connection choices visible to the user
    before analysis starts, and local CSV/JSON files can be profiled and mapped
    inside the product without scripts.
-7. The Source Health window exposes registered source loads, duplicate-key
+8. The Source Health window exposes registered source loads, duplicate-key
    checks, null profiling, and batch metadata so data quality is visible in the
    product.
-7. The Account Health view combines CRM, billing, support, and ecommerce into a
+9. The Account Health view combines CRM, billing, support, and ecommerce into a
    governed operational watchlist for account risk and follow-up priority.
-8. The business layer is not just descriptive. It includes:
+10. The business layer is not just descriptive. It includes:
+   - Net sales, gross sales, and cancellation-aware revenue comparisons.
+   - Marketing spend, attributed revenue, and ROAS.
    - Sales and revenue comparisons against aligned previous periods.
    - Pareto and ABC analysis to reveal concentration risk.
    - RFM and retention cohort analysis to separate acquisition from quality.
    - Predictive outlook with base, conservative, and upside scenarios.
-9. I also added guided dashboard changes and a semantic layer to show how BI can become more configurable and governed.
+11. I also added guided dashboard changes and a semantic layer to show how BI can become more configurable and governed.
 
 ## Why The Main Features Exist
 
@@ -53,7 +57,10 @@ count.
 Reason: topline numbers alone are weak. I needed to show if the result came from order volume, ticket size, or concentration in a few categories.
 
 ### Revenue Trends
-Reason: business users often ask whether a spike is real or just volatility. I added anomaly and structural-shift logic to separate noise from a meaningful level change.
+Reason: business users often ask whether a spike is real or just volatility. I added anomaly and structural-shift logic to separate noise from a meaningful level change, and I separated Net Sales from Gross Sales so cancelled order value does not inflate revenue.
+
+### Marketing Efficiency
+Reason: once marketing is a source, it needs to become a business analysis layer, not just a loaded table. The page shows spend, attributed revenue, ROAS, budget utilization, and channel mix using a clear city/date-window attribution proxy.
 
 ### Customer Segmentation
 Reason: revenue does not tell whether the base is healthy. RFM and repeat metrics help explain retention, risk, and customer quality.

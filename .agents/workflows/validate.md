@@ -39,9 +39,9 @@ $env:NEXTGEN_SKIP_PREWARM="1"; venv\Scripts\python.exe scripts/benchmark_dashboa
 
 | Check | Expected |
 |---|---|
-| pytest (20 tests) | All passed |
+| pytest (27 tests) | All passed |
 | app.js syntax | No errors |
 | desktop_lab.js syntax | No errors |
-| Benchmark (7 pages) | All median < 1.50s |
+| Benchmark (9 pages) | All median < 1.50s |
 
 If any check fails, stop and report the failure before proceeding.

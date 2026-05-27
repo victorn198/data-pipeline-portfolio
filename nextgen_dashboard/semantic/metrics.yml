@@ -1,12 +1,39 @@
 ﻿version: 1
 metrics:
   sales_amount:
-    label: Sales Amount
-    description: Total revenue inside the selected filter window.
+    label: Net Sales
+    description: Sales value inside the selected filter window after removing cancelled order value.
     format: currency
     aggregation: sum
     source_column: sales_amount
     dimensions: [category, city, order_date]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  gross_sales_amount:
+    label: Gross Sales
+    description: Raw order value before cancellation adjustment.
+    format: currency
+    aggregation: sum
+    source_column: gross_sales_amount
+    dimensions: [category, city, order_date, status]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  cancelled_sales_amount:
+    label: Cancelled Sales
+    description: Order value removed from Net Sales because the order was cancelled.
+    format: currency
+    aggregation: sum
+    source_column: cancelled_sales_amount
+    dimensions: [category, city, order_date, status]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  cancellation_rate:
+    label: Cancellation Rate
+    description: Share of gross order value removed by cancelled orders.
+    format: percent
+    aggregation: derived
+    formula_hint: cancelled_sales_amount / gross_sales_amount
+    dimensions: [category, city, order_date, status]
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
   orders_count:
@@ -20,7 +47,7 @@ metrics:
     allowed_comparisons: [previous_period]
   average_ticket:
     label: Average Ticket
-    description: Average revenue per order for the selected window.
+    description: Average net sales per order for the selected window.
     format: currency
     aggregation: derived
     formula_hint: sales_amount / orders_count
@@ -37,8 +64,8 @@ metrics:
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
   revenue_in_window:
-    label: Revenue in Window
-    description: Total revenue inside the currently selected date range.
+    label: Net Revenue in Window
+    description: Net revenue inside the currently selected date range after removing cancelled order value.
     format: currency
     aggregation: derived
     formula_hint: sum(sales_amount) in selected window
@@ -47,7 +74,7 @@ metrics:
     allowed_comparisons: [previous_period]
   revenue_run_rate:
     label: Daily Revenue Run Rate
-    description: Average revenue per day across the selected window.
+    description: Average net revenue per day across the selected window.
     format: currency
     aggregation: derived
     formula_hint: sales_amount / elapsed_days
@@ -55,8 +82,8 @@ metrics:
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
   latest_period_sales:
-    label: Latest Period Sales
-    description: Revenue of the latest visible period at the active granularity.
+    label: Latest Period Net Sales
+    description: Net sales of the latest visible period at the active granularity.
     format: currency
     aggregation: derived
     formula_hint: last_period_sales_amount
@@ -64,8 +91,8 @@ metrics:
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
   next_month_revenue_forecast:
-    label: Next Month Revenue Forecast
-    description: Holt linear forecast for next-month revenue using the selected monthly history window.
+    label: Next Month Net Revenue Forecast
+    description: Holt linear forecast for next-month net revenue using the selected monthly history window.
     format: currency
     aggregation: forecast
     formula_hint: holt_linear(monthly_sales_amount, horizon=1)
@@ -92,7 +119,7 @@ metrics:
     allowed_comparisons: [latest_actual]
   revenue_at_risk:
     label: Revenue At Risk
-    description: Revenue currently sitting in At Risk and Hibernating customer segments inside the selected window.
+    description: Net revenue currently sitting in At Risk and Hibernating customer segments inside the selected window.
     format: currency
     aggregation: derived
     formula_hint: revenue(At Risk + Hibernating)
@@ -100,8 +127,8 @@ metrics:
     allowed_granularities: [Month]
     allowed_comparisons: [previous_period]
   monthly_revenue_forecast:
-    label: Monthly Revenue Forecast
-    description: Historical monthly revenue with Holt linear baseline and forward forecast.
+    label: Monthly Net Revenue Forecast
+    description: Historical monthly net revenue with Holt linear baseline and forward forecast.
     format: currency
     aggregation: forecast
     formula_hint: holt_linear(monthly_sales_amount, horizon=3)
@@ -155,7 +182,7 @@ metrics:
     allowed_comparisons: [previous_period]
   revenue_per_customer:
     label: Revenue per Active Customer
-    description: Revenue contribution per active customer inside the selected window.
+    description: Net sales contribution per active customer inside the selected window.
     format: currency
     aggregation: derived
     formula_hint: sales_amount / active_customers
@@ -218,7 +245,7 @@ metrics:
     allowed_comparisons: [previous_period]
   top_5_products_share:
     label: Top 5 Products Share
-    description: Share of revenue generated by the top five products in the selected window.
+    description: Share of net sales generated by the top five products in the selected window.
     format: percent
     aggregation: derived
     formula_hint: top_5_product_sales / sales_amount
@@ -227,7 +254,7 @@ metrics:
     allowed_comparisons: [previous_period]
   top_category_share:
     label: Top Category Share
-    description: Share of revenue captured by the leading category in the selected window.
+    description: Share of net sales captured by the leading category in the selected window.
     format: percent
     aggregation: derived
     formula_hint: top_category_sales / sales_amount
@@ -254,11 +281,56 @@ metrics:
     allowed_comparisons: [previous_period]
   success_rate:
     label: Non-Cancelled Rate
-    description: Share of order lines that were not cancelled in the selected window.
+    description: Share of order rows that were not cancelled in the selected window.
     format: percent
     aggregation: derived
     formula_hint: non_cancelled_rows / total_rows
     dimensions: [category, city, order_date]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  marketing_spend:
+    label: Marketing Spend
+    description: Campaign spend active in the selected window.
+    format: currency
+    aggregation: sum
+    source_column: spend
+    dimensions: [channel, target_city, campaign]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  attributed_revenue:
+    label: Attributed Revenue
+    description: Net sales attributed to campaigns by target city and active campaign date window.
+    format: currency
+    aggregation: sum
+    source_column: attributed_revenue
+    dimensions: [channel, target_city, campaign]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  marketing_roas:
+    label: ROAS
+    description: Attributed Revenue divided by Marketing Spend.
+    format: number
+    aggregation: derived
+    formula_hint: attributed_revenue / marketing_spend
+    dimensions: [channel, target_city, campaign]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  campaigns_active:
+    label: Active Campaigns
+    description: Campaigns whose active dates overlap the selected window.
+    format: number
+    aggregation: count
+    source_column: campaign_id
+    dimensions: [channel, target_city, campaign]
+    allowed_granularities: [Day, Month, Quarter, Year]
+    allowed_comparisons: [previous_period]
+  budget_utilization:
+    label: Budget Utilization
+    description: Share of campaign budget already spent for campaigns active in the selected window.
+    format: percent
+    aggregation: derived
+    formula_hint: marketing_spend / campaign_budget
+    dimensions: [channel, target_city, campaign]
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
 

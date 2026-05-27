@@ -10,10 +10,12 @@ tests, API, and dashboard implementation are real.
 
 - Built an end-to-end analytics portfolio platform with Python, PostgreSQL,
   dbt, FastAPI, and a custom desktop-style BI interface.
-- Modeled 100K+ simulated ecommerce order lines across customers, products,
-  sales, retention, forecasting, and operations views.
+- Modeled 100K+ simulated ecommerce orders across customers, products,
+  net sales, retention, marketing, forecasting, and operations views.
 - Created advanced business analysis views including Pareto/ABC, RFM customer
   segmentation, retention cohorts, anomaly detection, and forecast scenarios.
+- Added certified revenue definitions separating Net Sales, Gross Sales,
+  cancelled order value, cancellation rate, and marketing ROAS.
 - Developed a multi-source Account Health case connecting CRM, billing,
   support, and ecommerce signals into a governed customer-risk watchlist.
 - Added source health monitoring for registered CSV, JSON, and paginated

@@ -18,8 +18,10 @@ import nextgen_dashboard.backend.main as main_module
 
 
 DEFAULT_PAGES = [
+    "executive",
     "sales",
     "revenue",
+    "marketing",
     "predictive",
     "customers",
     "retention",

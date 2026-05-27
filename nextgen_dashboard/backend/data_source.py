@@ -107,6 +107,9 @@ class DashboardDataSource:
             f"Invalid DASHBOARD_SOURCE_MODE='{self.settings.data_source_mode}'. Use 'database' or 'local'."
         )
 
+    def read_relation(self, schema: str, relation: str) -> pd.DataFrame:
+        return self._read_relation(schema, relation)
+
     def load_base_tables(self) -> dict[str, pd.DataFrame]:
         return {
             "sales": self._read_relation(

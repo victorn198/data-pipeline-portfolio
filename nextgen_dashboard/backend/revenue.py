@@ -7,6 +7,7 @@ import pandas as pd
 from .analytics_helpers import (
     build_aligned_trend,
     fmt_currency,
+    fmt_pct,
     make_card,
     range_with_previous,
 )
@@ -71,6 +72,12 @@ class RevenueService:
     ) -> list:
         current_revenue = float(current_df["sales_amount"].sum()) if not current_df.empty else 0.0
         previous_revenue = float(previous_df["sales_amount"].sum()) if not previous_df.empty else 0.0
+        current_gross = float(current_df["gross_sales_amount"].sum()) if not current_df.empty and "gross_sales_amount" in current_df.columns else current_revenue
+        previous_gross = float(previous_df["gross_sales_amount"].sum()) if not previous_df.empty and "gross_sales_amount" in previous_df.columns else previous_revenue
+        current_cancelled = float(current_df["cancelled_sales_amount"].sum()) if not current_df.empty and "cancelled_sales_amount" in current_df.columns else max(current_gross - current_revenue, 0.0)
+        previous_cancelled = float(previous_df["cancelled_sales_amount"].sum()) if not previous_df.empty and "cancelled_sales_amount" in previous_df.columns else max(previous_gross - previous_revenue, 0.0)
+        current_cancel_rate = current_cancelled / current_gross * 100.0 if current_gross else 0.0
+        previous_cancel_rate = previous_cancelled / previous_gross * 100.0 if previous_gross else 0.0
 
         days = int((end_date - start_date).days) + 1
         current_run_rate = current_revenue / days if days > 0 else 0.0
@@ -93,18 +100,18 @@ class RevenueService:
                 fmt_currency,
             ),
             make_card(
-                "revenue_run_rate",
-                "Daily Revenue Run Rate",
-                current_run_rate,
-                previous_run_rate,
+                "gross_sales_amount",
+                "Gross Sales",
+                current_gross,
+                previous_gross,
                 fmt_currency,
             ),
             make_card(
-                "average_ticket",
-                "Average Ticket",
-                current_ticket,
-                previous_ticket,
-                fmt_currency,
+                "cancellation_rate",
+                "Cancellation Rate",
+                current_cancel_rate,
+                previous_cancel_rate,
+                fmt_pct,
             ),
             make_card(
                 "latest_period_sales",
@@ -125,11 +132,12 @@ class RevenueService:
             return ["No data available for selected filters."]
 
         revenue_card = next(card for card in cards if card.key == "revenue_in_window")
-        run_rate_card = next(card for card in cards if card.key == "revenue_run_rate")
+        gross_card = next(card for card in cards if card.key == "gross_sales_amount")
+        cancel_card = next(card for card in cards if card.key == "cancellation_rate")
         latest_card = next(card for card in cards if card.key == "latest_period_sales")
         summary = [
-            f"Revenue in the selected window is {revenue_card.formatted_value}, versus {revenue_card.formatted_previous_value} in the previous equivalent window ({revenue_card.delta_label}).",
-            f"Daily run rate is {run_rate_card.formatted_value}, which indicates how fast revenue is accumulating inside the active filter context.",
+            f"Net revenue in the selected window is {revenue_card.formatted_value}, versus {revenue_card.formatted_previous_value} in the previous equivalent window ({revenue_card.delta_label}).",
+            f"Gross sales are {gross_card.formatted_value}; cancellation rate is {cancel_card.formatted_value}, which separates demand from cancelled order value.",
         ]
         if trend:
             summary.append(

@@ -1,39 +1,63 @@
 ﻿version: 1
 pages:
+  executive:
+    label: Executive Scorecard
+    subtitle: Certified business KPIs for net sales, gross demand, customer quality, cancellation risk, and current growth posture.
+    trend_title_template: Net Sales
+    trend_x_title: Period
+    current_trace_style: bar
+    previous_trace_style: line
+    cards: [sales_amount, gross_sales_amount, active_customers, revenue_at_risk, cancellation_rate, new_customers]
+    primary_trend_metric: sales_amount
+    allowed_actions: [compare_previous_period, change_granularity, inspect_kpi_ledger]
+    insight_note: Net Sales excludes cancelled order value; Gross Sales keeps demand visible before cancellation adjustment.
+    interaction_hint: Start here when explaining the business health story before drilling into specialized pages.
   sales:
     label: Sales Overview
-    subtitle: Topline revenue, order volume and category concentration across the selected slice.
-    trend_title_template: Sales Amount
+    subtitle: Net sales, order volume and category concentration across the selected slice.
+    trend_title_template: Net Sales
     trend_x_title: Period
     current_trace_style: bar
     previous_trace_style: line
     cards: [sales_amount, orders_count, average_ticket, avg_items_per_order]
     primary_trend_metric: sales_amount
     allowed_actions: [drilldown, compare_previous_period, change_granularity]
-    insight_note: Cards compare the selected window against the immediately previous window of the same length.
+    insight_note: Net Sales excludes cancelled order value. Cards compare the selected window against the immediately previous window of the same length.
     interaction_hint: Click any period in Sales to open the aligned day-by-day comparison for that selected window.
   revenue:
     label: Revenue Trends
-    subtitle: Revenue run-rate, anomaly signals and overall trajectory across the selected slice.
-    trend_title_template: Revenue Trend
+    subtitle: Net revenue trajectory, gross demand context, cancellation signal, and anomaly detection across the selected slice.
+    trend_title_template: Net Revenue Trend
     trend_x_title: Period
     current_trace_style: line
     previous_trace_style: line
-    cards: [revenue_in_window, revenue_run_rate, average_ticket, latest_period_sales]
+    cards: [revenue_in_window, gross_sales_amount, cancellation_rate, latest_period_sales]
     primary_trend_metric: sales_amount
     allowed_actions: [compare_previous_period, change_granularity]
-    insight_note: Revenue cards stay inside the selected date range; anomaly markers use a robust trailing baseline rather than simple previous-period comparison.
+    insight_note: Revenue cards use net sales after cancellation adjustment; anomaly markers use a robust trailing baseline rather than simple previous-period comparison.
+  marketing:
+    label: Marketing Efficiency
+    subtitle: Campaign spend, attributed revenue, ROAS, and channel mix using governed city/date-window attribution.
+    trend_title_template: Attributed Revenue
+    trend_x_title: Period
+    current_trace_style: bar
+    previous_trace_style: line
+    cards: [marketing_spend, attributed_revenue, marketing_roas, campaigns_active, budget_utilization]
+    primary_trend_metric: attributed_revenue
+    allowed_actions: [compare_previous_period, change_granularity, inspect_campaign_detail]
+    insight_note: Attribution is a city/date-window proxy for portfolio analysis, not a claim of last-click marketing truth.
+    interaction_hint: Use this page to explain marketing efficiency only after checking the Executive Scorecard.
   predictive:
     label: Predictive Outlook
-    subtitle: Forward-looking revenue baseline, next-month drivers and business watchlist across the selected slice.
-    trend_title_template: Monthly Revenue Forecast
+    subtitle: Forward-looking net revenue baseline, next-month drivers and business watchlist across the selected slice.
+    trend_title_template: Monthly Net Revenue Forecast
     trend_x_title: Month
     current_trace_style: line
     previous_trace_style: line
     cards: [next_month_revenue_forecast, next_month_orders_forecast, next_month_active_customers_forecast, revenue_at_risk]
     primary_trend_metric: monthly_revenue_forecast
     allowed_actions: [review_forecast_range, inspect_driver_watchlist, focus_next_actions]
-    insight_note: Forecasts use Holt linear smoothing on monthly history inside the selected window. Use them as directional planning baselines, not booking targets.
+    insight_note: Forecasts use Holt linear smoothing on monthly net sales history inside the selected window. Use them as directional planning baselines, not booking targets.
     interaction_hint: Click any forecast driver category to inspect the products expected to matter most next month.
   customers:
     label: Customer Segmentation
@@ -60,7 +84,7 @@ pages:
     interaction_hint: Retention uses monthly cohorts, so the Trend View control is hidden on this page.
   products:
     label: Product Performance
-    subtitle: Assortment breadth, Pareto concentration and product mix risk across the selected slice.
+    subtitle: Assortment breadth, Pareto concentration and net sales mix risk across the selected slice.
     trend_title_template: Top Category Share
     trend_x_title: Period
     current_trace_style: line
@@ -68,7 +92,7 @@ pages:
     cards: [products_sold, avg_unit_price, top_5_products_share, top_category_share]
     primary_trend_metric: top_category_share
     allowed_actions: [compare_previous_period, change_granularity]
-    insight_note: Read product Pareto first; if A-class products cover most revenue while distinct products stay flat, mix risk is increasing.
+    insight_note: Read product Pareto first; if A-class products cover most net sales while distinct products stay flat, mix risk is increasing.
   operations:
     label: Order Flow Operations
     subtitle: Order throughput, row intensity and fulfillment quality across the selected slice.
@@ -79,5 +103,5 @@ pages:
     cards: [orders_count, records_count, avg_lines_per_order, success_rate]
     primary_trend_metric: orders_count
     allowed_actions: [compare_previous_period, change_granularity]
-    insight_note: Use Orders Count first, then read row intensity and non-cancelled rate to understand operational pressure.
+    insight_note: Use Orders Count first, then read row intensity and non-cancelled rate to understand operational pressure. Current fact grain is one row per order.
 

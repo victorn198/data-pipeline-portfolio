@@ -23,11 +23,15 @@ portfolio further by showing application-oriented analytics delivery:
 
 ## Available Pages
 
+- `Executive Scorecard`
 - `Sales Overview`
 - `Revenue Trends`
+- `Marketing Efficiency`
+- `Predictive Outlook`
 - `Customer Segmentation`
+- `Retention Cohorts`
 - `Product Performance`
-- `Pipeline Operations`
+- `Order Flow Operations`
 - `Source Health`
 - `Account Health`
 
@@ -64,7 +68,7 @@ pytest tests/test_nextgen_dashboard_api.py
 
 - `GET /api/health`
 - `GET /api/meta/filters`
-- `GET /api/dashboard?page=sales|revenue|customers|products|operations`
+- `GET /api/dashboard?page=executive|sales|revenue|marketing|predictive|customers|retention|products|operations`
 - `GET /api/dashboard?page=sales&granularity=Month&drilldown_period_key=2026-03`
 - `GET /api/revenue?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD&granularity=Month`
 - `GET /api/source-health`

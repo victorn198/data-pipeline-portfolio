@@ -11,13 +11,15 @@ semantic definitions, API delivery, and an interactive analytics interface.
 
 ## TL;DR
 
-- `100,000+` simulated order lines across `10,000` customers and `2,000` products
+- `100,000+` simulated orders across `10,000` customers and `2,000` products
 - `dbt` warehouse with marts, tests, and snapshot modeling
 - FastAPI analytics backend plus a desktop-style BI interface
 - business analysis methods beyond topline dashboards:
+  - executive KPI scorecard
   - Pareto / `ABC`
   - `RFM`
   - retention cohorts
+  - marketing efficiency / `ROAS`
   - anomaly and structural shift detection
   - forecast scenarios
 - product-style investigation features:
@@ -85,6 +87,8 @@ is offline.
 ## Analytics Methods Included
 
 - aligned period-over-period comparisons
+- net versus gross sales separation with cancellation visibility
+- campaign spend, attributed revenue and `ROAS`
 - Pareto and `ABC` concentration analysis
 - `RFM` customer segmentation
 - retention cohort analysis
@@ -103,6 +107,7 @@ is offline.
 - `Recent` activity and `Action Board`
 - CSV export from detail and comparison views
 - window design themes inside the desktop shell
+- `Executive Scorecard` and `Marketing Efficiency` windows for certified KPI review and campaign ROAS analysis
 - `Source Health` window for registered-source audit and profiling results
 - `Account Health` window for company operations and customer risk follow-up
 

@@ -1,5 +1,13 @@
 const DESKTOP_PAGES = [
   {
+    key: "executive",
+    label: "Executive Scorecard",
+    desktopLabel: "Executive Scorecard",
+    windowLabel: "Executive Scorecard",
+    iconClass: "icon-art--executive",
+    rect: { x: 58, y: 36, w: 1040, h: 720 },
+  },
+  {
     key: "sales",
     label: "Sales Overview",
     desktopLabel: "Sales Overview",
@@ -14,6 +22,14 @@ const DESKTOP_PAGES = [
     windowLabel: "Revenue Trends",
     iconClass: "icon-art--revenue",
     rect: { x: 142, y: 64, w: 920, h: 680 },
+  },
+  {
+    key: "marketing",
+    label: "Marketing Efficiency",
+    desktopLabel: "Marketing Efficiency",
+    windowLabel: "Marketing Efficiency",
+    iconClass: "icon-art--marketing",
+    rect: { x: 180, y: 82, w: 960, h: 700 },
   },
   {
     key: "predictive",

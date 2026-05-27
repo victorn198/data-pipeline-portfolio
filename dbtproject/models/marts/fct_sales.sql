@@ -1,11 +1,10 @@
 /*
 MARTS: Sales Fact Table
-Granularity: 1 row per order_id (assuming stg_orders has unique order_id)
+Grain: one row per order_id.
 */
 
 {{ config(
-    materialized='incremental',
-    incremental_strategy='delete+insert',
+    materialized='table',
     unique_key='sales_key',
     schema='marts',
     tags=['marts', 'daily']
@@ -51,7 +50,16 @@ facts as (
 
         oe.quantity,
         oe.unit_price,
-        oe.total_amount as sales_amount,
+        oe.total_amount as gross_sales_amount,
+        case
+            when oe.status = 'cancelled' then 0::numeric(10, 2)
+            else oe.total_amount
+        end as sales_amount,
+        case
+            when oe.status = 'cancelled' then oe.total_amount
+            else 0::numeric(10, 2)
+        end as cancelled_sales_amount,
+        (oe.status = 'cancelled') as is_cancelled,
         oe.status,
 
         current_timestamp as created_at
@@ -61,11 +69,4 @@ facts as (
 )
 
 select * from facts
-
-/*
-{% if is_incremental() %}
-where order_date >= (select coalesce(max(order_date), '1900-01-01'::date) from {{ this }})
-{% endif %}
-*/
--- Incremental logic removed to ensure full refresh. The is_incremental() macro was not working as expected.
 

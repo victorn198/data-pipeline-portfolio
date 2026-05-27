@@ -7,6 +7,11 @@ function escapeHTML(str) {
 
 const PAGES = [
   {
+    key: "executive",
+    label: "Executive Scorecard",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="11" width="3" height="7"/><rect x="10.5" y="7" width="3" height="11"/><rect x="17" y="4" width="3" height="14"/><circle cx="18.5" cy="4" r="1.3"/></svg>`,
+  },
+  {
     key: "sales",
     label: "Sales Overview",
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="11" width="3" height="7"/><rect x="10.5" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>`,
@@ -15,6 +20,11 @@ const PAGES = [
     key: "revenue",
     label: "Revenue Trends",
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="4,16 9,11 13,14 20,7"/><circle cx="20" cy="7" r="1.6"/></svg>`,
+  },
+  {
+    key: "marketing",
+    label: "Marketing Efficiency",
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="7" cy="8" r="3"/><circle cx="17" cy="16" r="3"/><path d="M9.5 9.5 14.5 14.5"/><path d="M5 18h4"/><path d="M12 18h7"/></svg>`,
   },
   {
     key: "predictive",
@@ -38,7 +48,7 @@ const PAGES = [
   },
   {
     key: "operations",
-    label: "Pipeline Operations",
+    label: "Order Flow Operations",
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 8h4l2 3h6"/><path d="M6 16h4l2-3h6"/><circle cx="4" cy="8" r="1.5"/><circle cx="4" cy="16" r="1.5"/><circle cx="20" cy="11.5" r="1.5"/></svg>`,
   },
 ];
@@ -68,6 +78,16 @@ const QUICK_ACTIONS = {
       prompt: "clarify the comparison logic on this sales page",
     },
   ],
+  executive: [
+    {
+      label: "Explain certified KPIs",
+      prompt: "explain the certified executive KPIs and their reading order",
+    },
+    {
+      label: "Clarify net sales",
+      prompt: "clarify the difference between net sales and gross sales",
+    },
+  ],
   revenue: [
     {
       label: "Make trend easier",
@@ -80,6 +100,16 @@ const QUICK_ACTIONS = {
     {
       label: "Clarify subtitle",
       prompt: "clarify how revenue is compared against the previous period",
+    },
+  ],
+  marketing: [
+    {
+      label: "Explain ROAS",
+      prompt: "explain ROAS and the attribution caveat on this marketing page",
+    },
+    {
+      label: "Focus channel mix",
+      prompt: "highlight which marketing channel deserves attention first",
     },
   ],
   predictive: [
@@ -156,7 +186,7 @@ const QUICK_ACTIONS = {
 
 const state = {
   meta: null,
-  activePage: "sales",
+  activePage: "executive",
   drilldownPeriodKey: null,
   currentPayload: null,
   currentTrendData: [],

@@ -164,7 +164,7 @@ def render_architecture() -> None:
         FlowBox("1. Extractors", ["Python simulators", "Fake Store API seeds", "scaled ecommerce data"]),
         FlowBox("2. Raw Layer", ["PostgreSQL raw schema", "orders_raw", "customers_raw", "products_raw"]),
         FlowBox("3. dbt Staging", ["stg_orders", "stg_customers", "stg_products", "stg_snapshot_current"]),
-        FlowBox("4. dbt Core", ["int_orders_enhanced", "dim_customer", "dim_product", "fct_sales"]),
+        FlowBox("4. dbt Core", ["int_orders_enhanced", "fct_sales", "account + marketing marts"]),
         FlowBox("5. Semantic + BI", ["Measure dictionary", "Dashboard model", "API payload contracts"]),
         FlowBox("6. Delivery", ["FastAPI + Desktop BI", "Spotlight windows", "Compare + bookmarks"]),
     ]
@@ -192,10 +192,10 @@ def render_architecture() -> None:
     rounded(draw, (810, 470, 1540, 820), "#183765", BORDER, 24)
     draw.text((840, 506), "Current scale", font=font(18, True), fill=TEXT)
     scale = [
-        ("100k+", "simulated order lines in the standard project load"),
+        ("100k+", "simulated orders in the standard project load"),
         ("10k", "customers generated for portfolio-scale slicing"),
         ("2k", "products generated for Pareto / ABC / mix analysis"),
-        ("7+", "analytics pages in the desktop dashboard experience"),
+        ("9+", "analytics pages in the desktop dashboard experience"),
         ("26", "API, source, and semantic tests passing in the suite"),
     ]
     sy = 560
@@ -238,7 +238,7 @@ def render_warehouse() -> None:
         ("RAW", ["raw.orders_raw", "raw.customers_raw", "raw.products_raw"], BLUE),
         ("STAGING", ["stg_orders", "stg_customers", "stg_products", "stg_customer_snapshot"], BLUE),
         ("INTERMEDIATE", ["int_orders_enhanced"], BLUE),
-        ("MARTS", ["dim_customer", "dim_product", "fct_sales", "mart_account_health"], BLUE),
+        ("MARTS", ["dim_customer", "dim_product", "fct_sales", "mart_account_health", "mart_marketing_efficiency"], BLUE),
         ("MONITORING", ["data_quality_audit", "alerts", "operational_views", "source_health"], ACCENT),
     ]
     x, y, bw, bh, gap = 52, 190, 250, 570, 54

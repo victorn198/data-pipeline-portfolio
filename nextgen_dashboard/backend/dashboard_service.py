@@ -8,11 +8,13 @@ import pandas as pd
 from .analytics_helpers import (
     build_aligned_trend,
     build_daily_trend_for_period_comparison,
+    format_period_label,
     fmt_currency,
     fmt_decimal,
     fmt_number,
     fmt_pct,
     make_card,
+    period_freq,
     period_bounds_from_key,
     range_with_previous,
     safe_pct,
@@ -30,6 +32,7 @@ from .models import (
     PageName,
     TableColumn,
     TableRow,
+    TrendPoint,
 )
 from .predictive_analytics import (
     apply_scenario_to_trend,
@@ -60,6 +63,30 @@ MetricFn = Callable[[pd.DataFrame], float]
 
 def _sum_sales(df: pd.DataFrame) -> float:
     return float(df["sales_amount"].sum()) if not df.empty else 0.0
+
+
+def _sum_gross_sales(df: pd.DataFrame) -> float:
+    if df.empty:
+        return 0.0
+    if "gross_sales_amount" in df.columns:
+        return float(df["gross_sales_amount"].sum())
+    return _sum_sales(df)
+
+
+def _sum_cancelled_sales(df: pd.DataFrame) -> float:
+    if df.empty:
+        return 0.0
+    if "cancelled_sales_amount" in df.columns:
+        return float(df["cancelled_sales_amount"].sum())
+    if "status" in df.columns and "gross_sales_amount" in df.columns:
+        mask = df["status"].astype(str).str.lower() == "cancelled"
+        return float(df.loc[mask, "gross_sales_amount"].sum())
+    return 0.0
+
+
+def _cancellation_rate(df: pd.DataFrame) -> float:
+    gross = _sum_gross_sales(df)
+    return _sum_cancelled_sales(df) / gross * 100.0 if gross else 0.0
 
 
 def _orders_count(df: pd.DataFrame) -> float:
@@ -329,7 +356,7 @@ def _pareto_breakdown_payload(
         y_title=y_title,
         metric_format=metric_format,
         analysis_mode="pareto",
-        current_series_name="Current Revenue",
+        current_series_name="Current Net Sales",
         cumulative_series_name="Cumulative Share",
         cumulative_y_title="Cumulative Share",
         current_trace_style="bar",
@@ -456,6 +483,123 @@ def _build_retention_snapshot(
     }
 
 
+def _campaigns_in_window(
+    marketing_df: pd.DataFrame | None,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    cities: list[str] | None = None,
+) -> pd.DataFrame:
+    if marketing_df is None or marketing_df.empty:
+        return pd.DataFrame(columns=[] if marketing_df is None else marketing_df.columns)
+    frame = marketing_df.copy()
+    start = pd.Timestamp(start_date).normalize()
+    end = pd.Timestamp(end_date).normalize()
+    frame["start_date"] = pd.to_datetime(frame["start_date"], errors="coerce").dt.normalize()
+    frame["end_date"] = pd.to_datetime(frame["end_date"], errors="coerce").dt.normalize()
+    scoped = frame[(frame["start_date"] <= end) & (frame["end_date"] >= start)].copy()
+    if cities:
+        selected = {str(city).lower() for city in cities if str(city).strip()}
+        scoped = scoped[scoped["target_city"].astype(str).str.lower().isin(selected)]
+    return scoped
+
+
+def _sum_marketing(frame: pd.DataFrame, column: str) -> float:
+    if frame.empty or column not in frame.columns:
+        return 0.0
+    return float(pd.to_numeric(frame[column], errors="coerce").fillna(0.0).sum())
+
+
+def _marketing_roas(frame: pd.DataFrame) -> float:
+    spend = _sum_marketing(frame, "spend")
+    revenue = _sum_marketing(frame, "attributed_revenue")
+    return revenue / spend if spend else 0.0
+
+
+def _marketing_budget_utilization(frame: pd.DataFrame) -> float:
+    budget = _sum_marketing(frame, "budget")
+    spend = _sum_marketing(frame, "spend")
+    return spend / budget * 100.0 if budget else 0.0
+
+
+def _build_marketing_trend(
+    marketing_df: pd.DataFrame,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    granularity: Granularity,
+) -> list[TrendPoint]:
+    if marketing_df.empty:
+        return []
+    frame = marketing_df.copy()
+    frame["start_date"] = pd.to_datetime(frame["start_date"], errors="coerce").dt.normalize()
+    frame = frame.dropna(subset=["start_date"])
+    if frame.empty:
+        return []
+
+    freq = period_freq(granularity)
+    frame["period"] = frame["start_date"].dt.to_period(freq)
+    revenue_by_period = frame.groupby("period")["attributed_revenue"].sum()
+
+    visible_periods = pd.period_range(
+        pd.Timestamp(start_date).to_period(freq),
+        pd.Timestamp(end_date).to_period(freq),
+        freq=freq,
+    )
+    trend = []
+    for period in visible_periods:
+        current_value = float(revenue_by_period.get(period, 0.0))
+        previous_value = float(revenue_by_period.get(period - 1, 0.0))
+        trend.append(
+            TrendPoint(
+                period_key=str(period),
+                period_label=format_period_label(period, granularity),
+                current_value=current_value,
+                previous_value=previous_value,
+                delta_pct=safe_pct(current_value, previous_value),
+            )
+        )
+    return trend
+
+
+def _attribute_campaigns(campaigns: pd.DataFrame, sales_df: pd.DataFrame) -> pd.DataFrame:
+    if campaigns.empty:
+        return campaigns.copy()
+    attributed_rows = []
+    sales = sales_df.copy()
+    if not sales.empty:
+        sales["order_day"] = pd.to_datetime(sales["order_day"], errors="coerce").dt.normalize()
+        sales["city_match"] = sales["city"].astype(str).str.lower()
+    for _, campaign in campaigns.iterrows():
+        start_date = pd.Timestamp(campaign.get("start_date")).normalize()
+        end_date = pd.Timestamp(campaign.get("end_date")).normalize()
+        target_city = str(campaign.get("target_city") or "").lower()
+        matched = (
+            sales[
+                (sales["city_match"] == target_city)
+                & (sales["order_day"] >= start_date)
+                & (sales["order_day"] <= end_date)
+            ]
+            if not sales.empty
+            else sales
+        )
+        spend = float(campaign.get("spend") or 0.0)
+        budget = float(campaign.get("budget") or 0.0)
+        revenue = _sum_sales(matched)
+        customers = _customers_count(matched)
+        row = dict(campaign)
+        row.update(
+            {
+                "attributed_orders_count": _orders_count(matched),
+                "attributed_customers_count": customers,
+                "attributed_revenue": revenue,
+                "roas": revenue / spend if spend else 0.0,
+                "budget_utilization_pct": spend / budget * 100.0 if budget else 0.0,
+                "acquisition_cost_proxy": spend / customers if customers else 0.0,
+            }
+        )
+        attributed_rows.append(row)
+    return pd.DataFrame(attributed_rows)
+
+
 @dataclass(slots=True)
 class DashboardService:
     revenue_service: RevenueService
@@ -527,9 +671,16 @@ class DashboardService:
         end_date: pd.Timestamp,
         granularity: Granularity,
         full_df: pd.DataFrame | None = None,
+        marketing_df: pd.DataFrame | None = None,
         scenario_mode: ScenarioMode = "Base",
     ) -> DashboardPayload:
         full_df = full_df if full_df is not None else scoped_df
+        if page == "executive":
+            payload = self._build_executive(scoped_df, full_df, start_date, end_date, granularity)
+            return self._apply_semantic_config(payload)
+        if page == "marketing":
+            payload = self._build_marketing(scoped_df, marketing_df, start_date, end_date, granularity)
+            return self._apply_semantic_config(payload)
         if page == "revenue":
             payload = self._build_revenue(scoped_df, current_df, start_date, end_date, granularity)
             return self._apply_semantic_config(payload)
@@ -772,7 +923,7 @@ class DashboardService:
                 cards=overview.cards,
                 trend=[],
                 trend_title=f"Daily Drilldown - {period_label}",
-                trend_y_title="Sales Amount",
+                trend_y_title="Net Sales",
                 comparison_rule="Selected period has no overlap with current filter range.",
                 summary=["Selected period is outside current filters."],
                 trend_metric_format="currency",
@@ -811,7 +962,7 @@ class DashboardService:
                 cards=overview.cards,
                 trend=trend,
                 trend_title=f"Daily Comparison inside {period_label}",
-                trend_y_title="Sales Amount",
+                trend_y_title="Net Sales",
                 comparison_rule="Clicked period decomposed by day against the previous aligned period of the same length.",
                 summary=summary,
                 trend_metric_format="currency",
@@ -822,6 +973,206 @@ class DashboardService:
                 view_mode="drilldown",
                 selected_period_label=period_label,
             )
+        )
+
+    def _build_executive(
+        self,
+        scoped_df: pd.DataFrame,
+        full_df: pd.DataFrame,
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        granularity: Granularity,
+    ) -> DashboardPayload:
+        current_df, previous_df, previous_start, previous_end = range_with_previous(scoped_df, start_date, end_date)
+        active_current = _customers_count(current_df)
+        active_previous = _customers_count(previous_df)
+        current_rfm = build_rfm_segment_summary(current_df, end_date)
+        previous_rfm = build_rfm_segment_summary(previous_df, previous_end)
+        risk_segments = {"At Risk", "Hibernating"}
+        revenue_at_risk_current = (
+            float(current_rfm[current_rfm["segment"].isin(risk_segments)]["revenue"].sum())
+            if not current_rfm.empty
+            else 0.0
+        )
+        revenue_at_risk_previous = (
+            float(previous_rfm[previous_rfm["segment"].isin(risk_segments)]["revenue"].sum())
+            if not previous_rfm.empty
+            else 0.0
+        )
+        new_current = _customer_new_counts(full_df, current_df, start_date, end_date)
+        new_previous = _customer_new_counts(full_df, previous_df, previous_start, previous_end)
+
+        cards = [
+            make_card("sales_amount", "Net Sales", _sum_sales(current_df), _sum_sales(previous_df), fmt_currency),
+            make_card("gross_sales_amount", "Gross Sales", _sum_gross_sales(current_df), _sum_gross_sales(previous_df), fmt_currency),
+            make_card("active_customers", "Active Customers", active_current, active_previous, fmt_number),
+            make_card("revenue_at_risk", "Revenue At Risk", revenue_at_risk_current, revenue_at_risk_previous, fmt_currency),
+            make_card("cancellation_rate", "Cancellation Rate", _cancellation_rate(current_df), _cancellation_rate(previous_df), fmt_pct),
+            make_card("new_customers", "New Customers", new_current, new_previous, fmt_number),
+        ]
+
+        trend = build_aligned_trend(
+            scoped_df=scoped_df,
+            current_df=current_df,
+            start_date=start_date,
+            end_date=end_date,
+            granularity=granularity,
+            aggregator=_sum_sales,
+            optimized_sum_col="sales_amount",
+        )
+        secondary_chart = _build_breakdown_chart(
+            title="Net Sales by Category",
+            x_title="Category",
+            y_title="Net Sales",
+            current_df=current_df,
+            previous_df=previous_df,
+            group_col="category",
+            metric_fn=_sum_sales,
+            metric_format="currency",
+            limit=6,
+            current_trace_style="bar",
+            previous_trace_style="bar",
+            filter_key="category",
+        )
+
+        detail_table = _table_payload(
+            title="Executive KPI Ledger",
+            columns=[("metric", "Metric"), ("current", "Current"), ("previous", "Previous"), ("change", "Change")],
+            rows=[
+                {"metric": card.title, "current": card.formatted_value, "previous": card.formatted_previous_value, "change": card.delta_label}
+                for card in cards
+            ],
+        )
+        risk_share = revenue_at_risk_current / _sum_sales(current_df) * 100.0 if _sum_sales(current_df) else 0.0
+        summary = [
+            f"Net Sales are {cards[0].formatted_value} after removing {fmt_currency(_sum_cancelled_sales(current_df))} in cancelled order value from gross demand.",
+            f"Active Customers are {cards[2].formatted_value}; New Customers are {cards[5].formatted_value}, so the scorecard keeps growth and base quality together.",
+            f"Revenue At Risk is {cards[3].formatted_value} ({risk_share:.2f}% of net sales) across At Risk and Hibernating RFM segments.",
+        ]
+
+        return self._base_payload(
+            page="executive",
+            title="Executive Scorecard",
+            subtitle="Certified business KPIs for revenue, customer quality, cancellation risk, and current growth posture.",
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+            cards=cards,
+            trend=trend,
+            trend_title=f"Net Sales by {granularity}",
+            trend_y_title="Net Sales",
+            comparison_rule="Executive KPIs compare the selected window against the immediately previous window of the same length. Net Sales excludes cancelled order value; Gross Sales keeps raw demand visible.",
+            summary=summary,
+            trend_metric_format="currency",
+            current_trace_style="bar",
+            previous_trace_style="line",
+            secondary_chart=secondary_chart,
+            detail_table=detail_table,
+        )
+
+    def _build_marketing(
+        self,
+        scoped_df: pd.DataFrame,
+        marketing_df: pd.DataFrame | None,
+        start_date: pd.Timestamp,
+        end_date: pd.Timestamp,
+        granularity: Granularity,
+    ) -> DashboardPayload:
+        current_sales, previous_sales, previous_start, previous_end = range_with_previous(scoped_df, start_date, end_date)
+        cities = sorted(current_sales["city"].dropna().astype(str).unique().tolist()) if not current_sales.empty and "city" in current_sales.columns else []
+        current_campaigns = _attribute_campaigns(
+            _campaigns_in_window(marketing_df, start_date, end_date, cities),
+            current_sales,
+        )
+        previous_campaigns = _attribute_campaigns(
+            _campaigns_in_window(marketing_df, previous_start, previous_end, cities),
+            previous_sales,
+        )
+
+        cards = [
+            make_card("marketing_spend", "Marketing Spend", _sum_marketing(current_campaigns, "spend"), _sum_marketing(previous_campaigns, "spend"), fmt_currency),
+            make_card("attributed_revenue", "Attributed Revenue", _sum_marketing(current_campaigns, "attributed_revenue"), _sum_marketing(previous_campaigns, "attributed_revenue"), fmt_currency),
+            make_card("marketing_roas", "ROAS", _marketing_roas(current_campaigns), _marketing_roas(previous_campaigns), fmt_decimal),
+            make_card("campaigns_active", "Active Campaigns", float(len(current_campaigns)), float(len(previous_campaigns)), fmt_number),
+            make_card("budget_utilization", "Budget Utilization", _marketing_budget_utilization(current_campaigns), _marketing_budget_utilization(previous_campaigns), fmt_pct),
+        ]
+
+        trend = _build_marketing_trend(current_campaigns, start_date, end_date, granularity)
+        channel_points = []
+        current_by_channel = current_campaigns.groupby("channel")["attributed_revenue"].sum().to_dict() if not current_campaigns.empty else {}
+        previous_by_channel = previous_campaigns.groupby("channel")["attributed_revenue"].sum().to_dict() if not previous_campaigns.empty else {}
+        total_revenue = _sum_marketing(current_campaigns, "attributed_revenue")
+        for channel in sorted(set(current_by_channel) | set(previous_by_channel)):
+            current_value = float(current_by_channel.get(channel, 0.0))
+            previous_value = float(previous_by_channel.get(channel, 0.0))
+            channel_points.append(
+                BreakdownPoint(
+                    label=str(channel).replace("_", " ").title(),
+                    raw_label=str(channel),
+                    current_value=current_value,
+                    previous_value=previous_value,
+                    delta_pct=safe_pct(current_value, previous_value),
+                    share_pct=current_value / total_revenue * 100.0 if total_revenue else 0.0,
+                )
+            )
+        secondary_chart = (
+            BreakdownChartPayload(
+                title="Attributed Revenue by Channel",
+                x_title="Channel",
+                y_title="Attributed Revenue",
+                metric_format="currency",
+                current_trace_style="bar",
+                previous_trace_style="bar",
+                points=channel_points,
+            )
+            if channel_points
+            else None
+        )
+
+        sorted_campaigns = current_campaigns.sort_values(["attributed_revenue", "spend"], ascending=[False, False]) if not current_campaigns.empty else current_campaigns
+        detail_table = _table_payload(
+            title="Campaign Efficiency Detail",
+            columns=[("campaign", "Campaign"), ("channel", "Channel"), ("city", "City"), ("spend", "Spend"), ("revenue", "Attributed Revenue"), ("roas", "ROAS"), ("budget", "Budget Used"), ("orders", "Orders")],
+            rows=[
+                {
+                    "campaign": _display_label(row.get("campaign_name") or row.get("campaign_id"), max_len=28),
+                    "channel": str(row.get("channel") or "").replace("_", " ").title(),
+                    "city": str(row.get("target_city") or ""),
+                    "spend": fmt_currency(float(row.get("spend") or 0.0)),
+                    "revenue": fmt_currency(float(row.get("attributed_revenue") or 0.0)),
+                    "roas": fmt_decimal(float(row.get("roas") or 0.0)),
+                    "budget": fmt_pct(float(row.get("budget_utilization_pct") or 0.0)),
+                    "orders": fmt_number(float(row.get("attributed_orders_count") or 0.0)),
+                }
+                for _, row in sorted_campaigns.head(12).iterrows()
+            ],
+        )
+
+        best_channel = max(channel_points, key=lambda point: point.current_value).label if channel_points else "No channel"
+        summary = [
+            f"Marketing Spend is {cards[0].formatted_value} and Attributed Revenue is {cards[1].formatted_value}, producing ROAS of {cards[2].formatted_value}.",
+            f"{best_channel} is the largest attributed revenue channel in the active window.",
+            "Attribution is a governed city/date-window proxy, so it is useful for portfolio analysis but not presented as last-click truth.",
+        ]
+
+        return self._base_payload(
+            page="marketing",
+            title="Marketing Efficiency",
+            subtitle="Campaign spend, attributed revenue, ROAS, and channel mix using governed city/date-window attribution.",
+            granularity=granularity,
+            start_date=start_date,
+            end_date=end_date,
+            cards=cards,
+            trend=trend,
+            trend_title=f"Attributed Revenue by {granularity}",
+            trend_y_title="Attributed Revenue",
+            comparison_rule="Marketing KPIs compare campaigns active in the selected window against campaigns active in the previous equivalent window. Revenue attribution uses campaign target city and active date window, then respects the dashboard filters.",
+            summary=summary,
+            trend_metric_format="currency",
+            current_trace_style="bar",
+            previous_trace_style="line",
+            secondary_chart=secondary_chart,
+            detail_table=detail_table,
         )
 
     def _build_revenue(
@@ -841,9 +1192,9 @@ class DashboardService:
         )
         revenue_payload.trend = annotate_trend_anomalies(revenue_payload.trend)
         secondary_chart = _build_breakdown_chart(
-            title="Revenue by City",
+            title="Net Revenue by City",
             x_title="City",
-            y_title="Revenue",
+            y_title="Net Revenue",
             current_df=current_df,
             previous_df=range_with_previous(scoped_df, start_date, end_date)[1],
             group_col="city",
@@ -899,7 +1250,7 @@ class DashboardService:
         else:
             detail_table = _table_payload(
                 title="Period Ledger",
-                columns=[("period", "Period"), ("current", "Revenue"), ("previous", "Previous"), ("delta", "Delta")],
+                columns=[("period", "Period"), ("current", "Net Revenue"), ("previous", "Previous"), ("delta", "Delta")],
                 rows=[
                     {
                         "period": point.period_label,
@@ -928,25 +1279,25 @@ class DashboardService:
             shift = structural_shifts[0]
             summary.insert(
                 2,
-                f"A likely structural {str(shift['direction']).lower()} was detected around {shift['period_label']}; average revenue moved from {fmt_currency(float(shift['before_mean']))} to {fmt_currency(float(shift['after_mean']))} across adjacent windows.",
+                f"A likely structural {str(shift['direction']).lower()} was detected around {shift['period_label']}; average net revenue moved from {fmt_currency(float(shift['before_mean']))} to {fmt_currency(float(shift['after_mean']))} across adjacent windows.",
             )
         else:
             summary.insert(
                 2,
-                f"No structural break was strong enough to suggest a persistent level shift in {granularity.lower()} revenue.",
+                f"No structural break was strong enough to suggest a persistent level shift in {granularity.lower()} net revenue.",
             )
 
         return self._base_payload(
             page="revenue",
             title="Revenue Trends",
-            subtitle="Revenue run-rate, anomaly signals and overall trajectory across the selected slice.",
+            subtitle="Net revenue trajectory, gross demand context, cancellation signal, and anomaly detection across the selected slice.",
             granularity=granularity,
             start_date=start_date,
             end_date=end_date,
             cards=revenue_payload.cards,
             trend=revenue_payload.trend,
             trend_title=f"Revenue Trend by {granularity}",
-            trend_y_title="Sales Amount",
+            trend_y_title="Net Revenue",
             comparison_rule=revenue_payload.comparison_rule,
             summary=summary,
             trend_metric_format="currency",
@@ -1154,7 +1505,7 @@ class DashboardService:
         current_df, previous_df, _, _ = range_with_previous(scoped_df, start_date, end_date)
 
         cards = [
-            make_card("sales_amount", "Sales Amount", _sum_sales(current_df), _sum_sales(previous_df), fmt_currency),
+            make_card("sales_amount", "Net Sales", _sum_sales(current_df), _sum_sales(previous_df), fmt_currency),
             make_card("orders_count", "Orders Count", _orders_count(current_df), _orders_count(previous_df), fmt_number),
             make_card("average_ticket", "Average Ticket", _average_ticket(current_df), _average_ticket(previous_df), fmt_currency),
             make_card("avg_items_per_order", "Avg Items / Order", _avg_items_per_order(current_df), _avg_items_per_order(previous_df), fmt_decimal),
@@ -1169,9 +1520,9 @@ class DashboardService:
             optimized_sum_col="sales_amount",
         )
         secondary_chart = _pareto_breakdown_payload(
-            title="Category Pareto (Revenue)",
+            title="Category Pareto (Net Sales)",
             x_title="Category",
-            y_title="Sales Amount",
+            y_title="Net Sales",
             current_df=current_df,
             previous_df=previous_df,
             group_col="category",
@@ -1185,7 +1536,7 @@ class DashboardService:
         pareto_points = secondary_chart.points if secondary_chart else []
         detail_table = _table_payload(
             title="Category Pareto Detail",
-            columns=[("category", "Category"), ("sales", "Sales"), ("share", "Share"), ("cumulative", "Cumulative"), ("class", "ABC"), ("orders", "Orders"), ("ticket", "Avg Ticket")],
+            columns=[("category", "Category"), ("sales", "Net Sales"), ("share", "Share"), ("cumulative", "Cumulative"), ("class", "ABC"), ("orders", "Orders"), ("ticket", "Avg Ticket")],
             rows=[
                 {
                     "category": point.label,
@@ -1206,25 +1557,25 @@ class DashboardService:
         class_a_points = [point for point in pareto_points if point.segment_class == "A"]
         class_a_coverage = class_a_points[-1].cumulative_pct if class_a_points else 0.0
         summary = [
-            f"Revenue in the selected window is {cards[0].formatted_value}, versus {cards[0].formatted_previous_value} in the previous equivalent window ({cards[0].delta_label}).",
+            f"Net Sales in the selected window are {cards[0].formatted_value}, versus {cards[0].formatted_previous_value} in the previous equivalent window ({cards[0].delta_label}).",
             f"Order volume is {cards[1].formatted_value} while Average Ticket is {cards[2].formatted_value}, separating demand change from ticket-size change.",
-            f"Pareto view shows {len(class_a_points)} A-class categories cover {class_a_coverage:.2f}% of revenue; click a category to inspect the products inside it.",
+            f"Pareto view shows {len(class_a_points)} A-class categories cover {class_a_coverage:.2f}% of net sales; click a category to inspect the products inside it.",
         ]
         if trend:
             latest = trend[-1]
-            summary[2] = f"Latest visible {granularity.lower()} ({latest.period_label}) moved {latest.delta_pct:+.2f}% versus the previous equivalent period; the category Pareto shows whether that move came from a narrow set of categories."
+            summary[2] = f"Latest visible {granularity.lower()} ({latest.period_label}) moved {latest.delta_pct:+.2f}% versus the previous equivalent period; the category Pareto shows whether that net sales move came from a narrow set of categories."
         return self._base_payload(
             page="sales",
             title="Sales Overview",
-            subtitle="Topline revenue, order volume and category concentration across the selected slice.",
+            subtitle="Net sales, order volume and category concentration across the selected slice.",
             granularity=granularity,
             start_date=start_date,
             end_date=end_date,
             cards=cards,
             trend=trend,
-            trend_title=f"Sales Amount by {granularity}",
-            trend_y_title="Sales Amount",
-            comparison_rule="Cards compare the selected window versus the previous window of the same length. Trend points compare each visible period against the previous equivalent period; partial edge periods are aligned by day position.",
+            trend_title=f"Net Sales by {granularity}",
+            trend_y_title="Net Sales",
+            comparison_rule="Cards compare the selected window versus the previous window of the same length. Net Sales excludes cancelled order value; trend points compare each visible period against the previous equivalent period.",
             summary=summary,
             trend_metric_format="currency",
             current_trace_style="bar",

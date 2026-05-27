@@ -432,7 +432,8 @@ body {
     font-size: 12px;
 }
 .control-chip input {
-    width: 96px;
+    width: 104px;
+    min-width: 104px;
     font-weight: 800;
     letter-spacing: 0.02em;
     cursor: pointer;
@@ -652,7 +653,8 @@ body {
         letter-spacing: 0.03em;
     }
     .control-chip input {
-        width: 82px;
+        width: 104px;
+        min-width: 104px;
         font-size: 11px;
     }
     .control-chip:has(input)::after {
@@ -718,7 +720,8 @@ body {
         padding-right: 6px;
     }
     .control-chip input {
-        width: 74px;
+        width: 104px;
+        min-width: 104px;
     }
     .control-chip--select {
         min-width: 108px;
@@ -1060,6 +1063,8 @@ body[data-window-theme="desktop"] {
 }
 .icon-art--sales::before,
 .icon-art--revenue::before,
+.icon-art--executive::before,
+.icon-art--marketing::before,
 .icon-art--predictive::before,
 .icon-art--customers::before,
 .icon-art--retention::before,
@@ -1109,6 +1114,19 @@ body[data-window-theme="desktop"] {
         linear-gradient(180deg, #83a03a 0%, #9cbb4f 100%) 21px 5px / 5px 17px
             no-repeat;
 }
+.icon-art--executive::after {
+    left: 11px;
+    top: 11px;
+    width: 28px;
+    height: 26px;
+    background:
+        linear-gradient(#4d4334, #4d4334) 2px 22px / 24px 2px no-repeat,
+        linear-gradient(#4d4334, #4d4334) 2px 2px / 2px 22px no-repeat,
+        linear-gradient(180deg, #2c74ed 0%, #4b8cff 100%) 6px 11px / 4px 11px no-repeat,
+        linear-gradient(180deg, #83a03a 0%, #9cbb4f 100%) 13px 6px / 4px 16px no-repeat,
+        linear-gradient(180deg, #f7b267 0%, #ef9f38 100%) 20px 3px / 4px 19px no-repeat,
+        radial-gradient(circle at 24px 5px, #ef6c4a 0 3px, transparent 3.5px);
+}
 .icon-art--revenue::after {
     left: 11px;
     top: 11px;
@@ -1137,6 +1155,20 @@ body[data-window-theme="desktop"] {
             #7ea8b5 0 2.2px,
             transparent 2.7px
         );
+}
+.icon-art--marketing::after {
+    left: 11px;
+    top: 12px;
+    width: 28px;
+    height: 26px;
+    background:
+        radial-gradient(circle at 7px 8px, #f7b267 0 5px, transparent 5.5px),
+        radial-gradient(circle at 20px 17px, #2c74ed 0 5px, transparent 5.5px),
+        linear-gradient(#4d4334, #4d4334) 7px 8px / 13px 2px no-repeat,
+        linear-gradient(#4d4334, #4d4334) 19px 10px / 2px 8px no-repeat,
+        linear-gradient(180deg, #83a03a 0%, #9cbb4f 100%) 4px 18px / 5px 6px no-repeat,
+        linear-gradient(180deg, #ef6c4a 0%, #e5714e 100%) 12px 15px / 5px 9px no-repeat,
+        linear-gradient(180deg, #2c74ed 0%, #4b8cff 100%) 22px 11px / 5px 13px no-repeat;
 }
 .icon-art--predictive::after {
     left: 12px;

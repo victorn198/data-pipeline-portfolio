@@ -32,6 +32,10 @@ sources:
       - name: MARKETING_CAMPAIGNS
         identifier: marketing_campaigns_raw
         description: Registered CSV source landed in raw with load metadata.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 48, period: hour}
+          error_after: {count: 96, period: hour}
         columns:
           - name: campaign_id
             tests: [not_null]
@@ -41,6 +45,10 @@ sources:
       - name: SUPPORT_TICKETS
         identifier: support_tickets_raw
         description: Registered JSON source landed in raw with load metadata.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 48, period: hour}
+          error_after: {count: 96, period: hour}
         columns:
           - name: ticket_id
             tests: [not_null]
@@ -50,6 +58,10 @@ sources:
       - name: CRM_ACCOUNTS
         identifier: crm_accounts_raw
         description: Registered paginated CRM-style API source landed in raw with load metadata.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 48, period: hour}
+          error_after: {count: 96, period: hour}
         columns:
           - name: account_id
             tests: [not_null]
@@ -59,6 +71,10 @@ sources:
       - name: BILLING_INVOICES
         identifier: billing_invoices_raw
         description: Registered billing invoices API-style source landed in raw with load metadata.
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after: {count: 48, period: hour}
+          error_after: {count: 96, period: hour}
         columns:
           - name: invoice_id
             tests: [not_null]
@@ -202,10 +218,14 @@ models:
         tests: [unique, not_null]
 
   - name: fct_sales
-    description: "Sales fact table (grain: one row per order_id or order line, depending on the source)."
+    description: "Sales fact table (grain: one row per order_id). sales_amount is net of cancelled orders; gross_sales_amount keeps the raw order value."
     columns:
       - name: sales_key
         description: Surrogate key of the fact table row.
+        tests: [unique, not_null]
+
+      - name: order_id
+        description: Business identifier of the order represented by this fact row.
         tests: [unique, not_null]
 
       - name: customer_key
@@ -225,6 +245,29 @@ models:
               arguments:
                 to: ref('dim_product')
                 field: product_key
+
+      - name: gross_sales_amount
+        description: Raw order value before cancellation adjustment.
+        tests: [not_null]
+
+      - name: sales_amount
+        description: Net sales amount used by dashboard revenue KPIs; cancelled orders contribute zero.
+        tests: [not_null]
+
+      - name: cancelled_sales_amount
+        description: Order value removed from net sales because the order was cancelled.
+        tests: [not_null]
+
+      - name: is_cancelled
+        description: Boolean flag identifying cancelled orders.
+        tests: [not_null]
+
+      - name: status
+        description: Normalized order status used for operational quality metrics.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["pending", "paid", "cancelled", "shipped", "completed"]
 
   - name: mart_account_health
     description: Account-level operational mart combining CRM, billing, support, and ecommerce activity.
@@ -263,3 +306,34 @@ models:
           - accepted_values:
               arguments:
                 values: ["billing_risk", "support_risk", "commercial_follow_up", "stable"]
+
+  - name: mart_marketing_efficiency
+    description: Campaign-level marketing efficiency mart with city/date-window revenue attribution.
+    tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "spend >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "budget >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "attributed_revenue >= 0"
+    columns:
+      - name: campaign_id
+        description: Business identifier of the marketing campaign.
+        tests: [unique, not_null]
+      - name: channel
+        description: Acquisition channel used for marketing efficiency analysis.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["paid_search", "email", "paid_social", "display"]
+      - name: spend
+        description: Campaign spend.
+        tests: [not_null]
+      - name: attributed_revenue
+        description: Net sales attributed by campaign target city and campaign active date window.
+        tests: [not_null]
+      - name: roas
+        description: Attributed revenue divided by spend.

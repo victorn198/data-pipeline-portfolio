@@ -118,8 +118,12 @@ def test_semantic_layer_endpoint() -> None:
 
     payload = response.json()
     assert "sales_amount" in payload["metrics"]
-    assert "sales" in payload["pages"]
-    assert payload["pages"]["sales"]["primary_trend_metric"] == "sales_amount"
+    assert "executive" in payload["pages"]
+    assert "marketing" in payload["pages"]
+    assert payload["pages"]["executive"]["primary_trend_metric"] == "sales_amount"
+    assert payload["metrics"]["sales_amount"]["label"] == "Net Sales"
+    assert payload["metrics"]["gross_sales_amount"]["format"] == "currency"
+    assert payload["metrics"]["marketing_roas"]["format"] == "number"
     assert payload["metrics"]["top_category_share"]["format"] == "percent"
 
 
@@ -193,7 +197,7 @@ def test_account_health_endpoint() -> None:
 
 
 def test_dashboard_pages_respond() -> None:
-    for page in ("sales", "revenue", "predictive", "customers", "retention", "products", "operations"):
+    for page in ("executive", "sales", "revenue", "marketing", "predictive", "customers", "retention", "products", "operations"):
         response = client.get("/api/dashboard", params={"page": page})
         assert response.status_code == 200
 
@@ -202,6 +206,17 @@ def test_dashboard_pages_respond() -> None:
         assert isinstance(payload["cards"], list)
         assert isinstance(payload["trend"], list)
         assert payload["trend_title"]
+
+    executive_payload = client.get("/api/dashboard", params={"page": "executive"}).json()
+    assert executive_payload["cards"][0]["key"] == "sales_amount"
+    assert executive_payload["cards"][1]["key"] == "gross_sales_amount"
+    assert executive_payload["primary_metric_key"] == "sales_amount"
+    assert executive_payload["detail_table"]["title"] == "Executive KPI Ledger"
+
+    marketing_payload = client.get("/api/dashboard", params={"page": "marketing"}).json()
+    assert marketing_payload["cards"][0]["key"] == "marketing_spend"
+    assert marketing_payload["cards"][2]["key"] == "marketing_roas"
+    assert marketing_payload["detail_table"]["title"] == "Campaign Efficiency Detail"
 
     predictive_payload = client.get("/api/dashboard", params={"page": "predictive", "granularity": "Quarter"}).json()
     assert predictive_payload["granularity"] == "Month"
@@ -461,7 +476,8 @@ def test_dashboard_uses_semantic_layout_config() -> None:
     payload = response.json()
     assert payload["trend_x_title"] == "Period"
     assert payload["cards"][0]["key"] == "revenue_in_window"
-    assert payload["secondary_chart"]["title"] == "Revenue by City"
+    assert payload["cards"][1]["key"] == "gross_sales_amount"
+    assert payload["secondary_chart"]["title"] == "Net Revenue by City"
     assert payload["detail_table"]["title"] in {"Period Ledger", "Revenue Anomaly Detail", "Revenue Signal Log"}
     assert all("is_anomaly" in point for point in payload["trend"])
     assert all("is_structural_shift" in point for point in payload["trend"])
@@ -474,7 +490,7 @@ def test_dashboard_uses_semantic_layout_config() -> None:
 def test_dashboard_exposes_driver_and_detail_layers() -> None:
     sales_payload = client.get("/api/dashboard", params={"page": "sales"}).json()
     sales_payload = client.get("/api/dashboard", params={"page": "sales"}).json()
-    assert sales_payload["secondary_chart"]["title"] == "Category Pareto (Revenue)"
+    assert sales_payload["secondary_chart"]["title"] == "Category Pareto (Net Sales)"
     assert sales_payload["secondary_chart"]["analysis_mode"] == "pareto"
     assert sales_payload["secondary_chart"]["interaction_key"] == "category"
     assert any(point.get("cumulative_pct") is not None for point in sales_payload["secondary_chart"]["points"])

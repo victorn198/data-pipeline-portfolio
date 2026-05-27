@@ -90,11 +90,11 @@ mantendo a responsabilidade final sobre direção do produto e qualidade.
 ### English
 
 - Built an end-to-end analytics project with Python, PostgreSQL, dbt, FastAPI, and a custom BI interface.
-- Simulated and modeled `100K+` order lines across `10K` customers and `2K` products.
+- Simulated and modeled `100K+` orders across `10K` customers and `2K` products.
 - Designed a desktop-first BI interface with Data Center source selection, Spotlight investigation, comparison views, drilldowns, RFM, retention, Pareto/ABC, predictive scenarios, Source Health, and Account Health.
 
 ### Portuguese
 
 - Desenvolvi um projeto ponta a ponta de analytics com Python, PostgreSQL, dbt, FastAPI e uma interface BI propria.
-- Modelei `100 mil+` linhas de pedidos simuladas, cobrindo `10 mil` clientes e `2 mil` produtos.
+- Modelei `100 mil+` pedidos simulados, cobrindo `10 mil` clientes e `2 mil` produtos.
 - Criei uma interface de BI em formato desktop com Data Center para fontes, Spotlight, comparações, drilldowns, RFM, retenção, Pareto/ABC, cenários preditivos, Source Health e Account Health.

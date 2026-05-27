@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 
@@ -51,10 +52,107 @@ class SalesRepository:
                     sales_df[numeric_col], errors="coerce"
                 ).fillna(0.0)
 
+        if "gross_sales_amount" not in sales_df.columns:
+            sales_df["gross_sales_amount"] = sales_df["sales_amount"]
+        else:
+            sales_df["gross_sales_amount"] = pd.to_numeric(
+                sales_df["gross_sales_amount"], errors="coerce"
+            ).fillna(0.0)
+
+        if "cancelled_sales_amount" not in sales_df.columns:
+            if "status" in sales_df.columns:
+                cancelled_mask = sales_df["status"].astype(str).str.lower() == "cancelled"
+                sales_df["cancelled_sales_amount"] = sales_df["gross_sales_amount"].where(
+                    cancelled_mask,
+                    0.0,
+                )
+                sales_df["sales_amount"] = sales_df["gross_sales_amount"].where(
+                    ~cancelled_mask,
+                    0.0,
+                )
+            else:
+                sales_df["cancelled_sales_amount"] = 0.0
+        else:
+            sales_df["cancelled_sales_amount"] = pd.to_numeric(
+                sales_df["cancelled_sales_amount"], errors="coerce"
+            ).fillna(0.0)
+
+        if "is_cancelled" not in sales_df.columns:
+            sales_df["is_cancelled"] = (
+                sales_df["status"].astype(str).str.lower() == "cancelled"
+                if "status" in sales_df.columns
+                else False
+            )
+
         self._sales_cache = sales_df
         self._filter_metadata_cache = None
         self._first_purchase_cache = None
         return self._sales_cache
+
+    def load_marketing_model(self, force_refresh: bool = False) -> pd.DataFrame:
+        try:
+            marketing_df = self.data_source.read_relation(
+                "marts",
+                "mart_marketing_efficiency",
+            )
+            marketing_df.columns = [col.lower() for col in marketing_df.columns]
+            return _normalize_marketing_frame(marketing_df)
+        except Exception:
+            return self._build_marketing_model_from_registered_file()
+
+    def _build_marketing_model_from_registered_file(self) -> pd.DataFrame:
+        source_path = (
+            Path(__file__).resolve().parents[2]
+            / "data"
+            / "sources"
+            / "marketing_campaigns.csv"
+        )
+        if not source_path.exists():
+            return _normalize_marketing_frame(pd.DataFrame())
+
+        campaigns = pd.read_csv(source_path)
+        campaigns.columns = [col.lower() for col in campaigns.columns]
+        campaigns = _normalize_marketing_frame(campaigns)
+        if campaigns.empty:
+            return campaigns
+
+        sales = self.load_sales_model()
+        if sales.empty:
+            campaigns["attributed_orders_count"] = 0.0
+            campaigns["attributed_customers_count"] = 0.0
+            campaigns["attributed_revenue"] = 0.0
+            campaigns["roas"] = 0.0
+            campaigns["budget_utilization_pct"] = 0.0
+            campaigns["acquisition_cost_proxy"] = 0.0
+            return campaigns
+
+        rows = []
+        for _, campaign in campaigns.iterrows():
+            target_city = str(campaign.get("target_city") or "").lower()
+            start_date = pd.Timestamp(campaign.get("start_date")).normalize()
+            end_date = pd.Timestamp(campaign.get("end_date")).normalize()
+            matched = sales[
+                (sales["city"].astype(str).str.lower() == target_city)
+                & (sales["order_day"] >= start_date)
+                & (sales["order_day"] <= end_date)
+            ]
+            attributed_revenue = float(matched["sales_amount"].sum()) if not matched.empty else 0.0
+            attributed_customers = float(matched["customer_id"].nunique()) if not matched.empty else 0.0
+            spend = float(campaign.get("spend") or 0.0)
+            budget = float(campaign.get("budget") or 0.0)
+            row = dict(campaign)
+            row.update(
+                {
+                    "attributed_orders_count": float(matched["order_id"].nunique()) if not matched.empty else 0.0,
+                    "attributed_customers_count": attributed_customers,
+                    "attributed_revenue": attributed_revenue,
+                    "roas": attributed_revenue / spend if spend else 0.0,
+                    "budget_utilization_pct": spend / budget * 100.0 if budget else 0.0,
+                    "acquisition_cost_proxy": spend / attributed_customers if attributed_customers else 0.0,
+                }
+            )
+            rows.append(row)
+        return _normalize_marketing_frame(pd.DataFrame(rows))
 
     def filter_frame_by_date(
         self,
@@ -148,3 +246,50 @@ class SalesRepository:
             raise DataSourceError("start_date must be less than or equal to end_date.")
 
         return start_ts.normalize(), end_ts.normalize()
+
+
+def _normalize_marketing_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    expected_columns = [
+        "campaign_id",
+        "campaign_name",
+        "channel",
+        "start_date",
+        "end_date",
+        "target_city",
+        "status",
+        "budget",
+        "spend",
+        "attributed_orders_count",
+        "attributed_customers_count",
+        "attributed_revenue",
+        "roas",
+        "budget_utilization_pct",
+        "acquisition_cost_proxy",
+    ]
+    if frame.empty:
+        return pd.DataFrame(columns=expected_columns)
+
+    frame = frame.copy()
+    for column in ("start_date", "end_date"):
+        if column in frame.columns:
+            frame[column] = pd.to_datetime(frame[column], errors="coerce").dt.normalize()
+        else:
+            frame[column] = pd.NaT
+    for column in (
+        "budget",
+        "spend",
+        "attributed_orders_count",
+        "attributed_customers_count",
+        "attributed_revenue",
+        "roas",
+        "budget_utilization_pct",
+        "acquisition_cost_proxy",
+    ):
+        if column not in frame.columns:
+            frame[column] = 0.0
+        frame[column] = pd.to_numeric(frame[column], errors="coerce").fillna(0.0)
+    for column in ("campaign_id", "campaign_name", "channel", "target_city", "status"):
+        if column not in frame.columns:
+            frame[column] = ""
+        frame[column] = frame[column].fillna("").astype(str)
+    return frame

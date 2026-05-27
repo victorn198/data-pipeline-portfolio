@@ -122,10 +122,10 @@ BEGIN
   );
   v_failed_rules := v_failed_rules + CASE WHEN v_error_count = 0 THEN 0 ELSE 1 END;
 
-  -- Rule 5: Amount consistency.
+  -- Rule 5: Gross amount consistency.
   SELECT COUNT(*) INTO v_error_count
   FROM marts.fct_sales
-  WHERE ABS(COALESCE(sales_amount, 0) - ROUND(COALESCE(quantity, 0) * COALESCE(unit_price, 0), 2)) > 0.01;
+  WHERE ABS(COALESCE(gross_sales_amount, 0) - ROUND(COALESCE(quantity, 0) * COALESCE(unit_price, 0), 2)) > 0.01;
 
   INSERT INTO data_quality.data_quality_audit (
     run_id, checked_at, rule_name, target_object, status, error_count, severity, details
@@ -133,16 +133,40 @@ BEGIN
   VALUES (
     v_run_id,
     v_checked_at,
-    'order_amount_consistency_fact_sales',
+    'gross_order_amount_consistency_fact_sales',
     'marts.fct_sales',
     CASE WHEN v_error_count = 0 THEN 'PASS' ELSE 'FAIL' END,
     v_error_count,
     'ERROR',
-    'Checks if SALES_AMOUNT equals QUANTITY * UNIT_PRICE (tolerance 0.01).'
+    'Checks if GROSS_SALES_AMOUNT equals QUANTITY * UNIT_PRICE (tolerance 0.01).'
   );
   v_failed_rules := v_failed_rules + CASE WHEN v_error_count = 0 THEN 0 ELSE 1 END;
 
-  -- Rule 6: Customer email validity.
+  -- Rule 6: Net/cancelled amount reconciliation.
+  SELECT COUNT(*) INTO v_error_count
+  FROM marts.fct_sales
+  WHERE ABS(
+      COALESCE(gross_sales_amount, 0)
+      - COALESCE(sales_amount, 0)
+      - COALESCE(cancelled_sales_amount, 0)
+  ) > 0.01;
+
+  INSERT INTO data_quality.data_quality_audit (
+    run_id, checked_at, rule_name, target_object, status, error_count, severity, details
+  )
+  VALUES (
+    v_run_id,
+    v_checked_at,
+    'net_cancelled_reconciliation_fact_sales',
+    'marts.fct_sales',
+    CASE WHEN v_error_count = 0 THEN 'PASS' ELSE 'FAIL' END,
+    v_error_count,
+    'ERROR',
+    'Checks if GROSS_SALES_AMOUNT equals SALES_AMOUNT plus CANCELLED_SALES_AMOUNT.'
+  );
+  v_failed_rules := v_failed_rules + CASE WHEN v_error_count = 0 THEN 0 ELSE 1 END;
+
+  -- Rule 7: Customer email validity.
   SELECT COUNT(*) INTO v_error_count
   FROM staging.stg_customers
   WHERE email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$';

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 Granularity = Literal["Day", "Month", "Quarter", "Year"]
 ScenarioMode = Literal["Base", "Conservative", "Upside"]
-PageName = Literal["sales", "revenue", "predictive", "customers", "retention", "products", "operations"]
+PageName = Literal["executive", "sales", "revenue", "marketing", "predictive", "customers", "retention", "products", "operations"]
 MetricFormat = Literal["currency", "number", "percent"]
 TraceStyle = Literal["line", "bar"]
 ViewMode = Literal["overview", "drilldown"]

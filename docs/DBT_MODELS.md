@@ -67,5 +67,6 @@ A camada final do pipeline, pronta para o consumo analítico. Segue a metodologi
 ### Modelos:
 -   `dim_customer.sql`: Tabela de dimensão contendo todos os atributos dos clientes.
 -   `dim_product.sql`: Tabela de dimensão com os atributos dos produtos.
--   `fct_sales.sql`: Tabela de fatos principal, registrando cada item de pedido como um evento de venda. Contém métricas como `quantity`, `price` e chaves para as dimensões `customer` e `product`.
+-   `fct_sales.sql`: Tabela de fatos principal no grao de um registro por `order_id`. Mantem `gross_sales_amount`, `sales_amount` liquido de cancelamento, `cancelled_sales_amount`, `quantity`, `unit_price` e chaves para as dimensoes `customer` e `product`.
 -   `mart_account_health.sql`: Mart operacional no grao de conta CRM, unindo CRM, billing, suporte e ecommerce para criar score de saude, tier de risco, driver principal e watchlist de contas.
+-   `mart_marketing_efficiency.sql`: Mart de eficiencia de marketing no grao de campanha, atribuindo receita liquida por cidade e janela ativa de campanha para calcular ROAS e uso de budget.

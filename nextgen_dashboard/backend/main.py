@@ -266,7 +266,8 @@ def _warm_default_dashboard_cache() -> None:
         )
         current_df = repository.filter_frame_by_date(scoped_df, start_ts, end_ts)
         semantic_layer.load()
-        for page_name in ("sales", "revenue", "predictive", "customers", "retention", "products", "operations"):
+        marketing_df = repository.load_marketing_model()
+        for page_name in ("executive", "sales", "revenue", "marketing", "predictive", "customers", "retention", "products", "operations"):
             cache_key = _dashboard_cache_key(
                 page=page_name,
                 start_ts=start_ts,
@@ -285,6 +286,7 @@ def _warm_default_dashboard_cache() -> None:
                 end_date=end_ts,
                 granularity="Month",
                 full_df=full_df,
+                marketing_df=marketing_df,
                 scenario_mode="Base",
             )
             _write_dashboard_cache(cache_key, payload)
@@ -539,6 +541,7 @@ def dashboard_detail_endpoint(
 
     full_df = repository.load_sales_model()
     full_df.attrs["customer_first_purchase"] = repository.customer_first_purchase()
+    marketing_df = repository.load_marketing_model() if page == "marketing" else None
     scoped_df = repository.filter_sales(
         start_date=None,
         end_date=None,
@@ -603,6 +606,7 @@ def dashboard_endpoint(
 
     full_df = repository.load_sales_model()
     full_df.attrs["customer_first_purchase"] = repository.customer_first_purchase()
+    marketing_df = repository.load_marketing_model() if page == "marketing" else None
     scoped_df = repository.filter_sales(
         start_date=None,
         end_date=None,
@@ -643,6 +647,7 @@ def dashboard_endpoint(
         end_date=end_ts,
         granularity=granularity,
         full_df=full_df,
+        marketing_df=marketing_df,
         scenario_mode=scenario_mode,
     )
     _write_dashboard_cache(cache_key, payload)
