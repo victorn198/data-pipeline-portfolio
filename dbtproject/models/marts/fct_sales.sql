@@ -1,6 +1,6 @@
 /*
 MARTS: Sales Fact Table
-Grain: one row per order_id.
+Grain: one row per order line.
 */
 
 {{ config(
@@ -12,6 +12,7 @@ Grain: one row per order_id.
 
 with orders_enhanced as (
     select
+        order_line_id,
         order_id,
         customer_id,
         product_id,
@@ -35,10 +36,11 @@ dim_product as (
 
 facts as (
     select
-        {{ dbt_utils.generate_surrogate_key(['oe.order_id']) }} as sales_key,
+        {{ dbt_utils.generate_surrogate_key(['oe.order_line_id']) }} as sales_key,
         dc.customer_key,
         dp.product_key,
 
+        oe.order_line_id,
         oe.order_id,
         oe.customer_id,
         oe.product_id,

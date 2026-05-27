@@ -29,6 +29,7 @@ with campaigns as (
 
 sales as (
     select
+        s.order_line_id,
         s.order_id,
         s.customer_id,
         s.order_date::date as order_date,
@@ -43,10 +44,11 @@ sales as (
 eligible_sales as (
     select
         c.campaign_id,
+        s.order_line_id,
         s.order_id,
         s.customer_id,
         s.sales_amount,
-        count(*) over (partition by s.order_id) as campaign_matches
+        count(*) over (partition by s.order_line_id) as campaign_matches
     from campaigns c
     inner join sales s
       on lower(s.city) = lower(c.target_city)

@@ -2,7 +2,7 @@
   "records": [
     {
       "invoice_id": "INV_0001",
-      "customer_id": "CUST_000001",
+      "customer_id": "CUST_17850",
       "account_id": "ACC_001",
       "invoice_date": "2025-01-05",
       "due_date": "2025-02-04",
@@ -16,7 +16,7 @@
     },
     {
       "invoice_id": "INV_0002",
-      "customer_id": "CUST_000044",
+      "customer_id": "CUST_13047",
       "account_id": "ACC_002",
       "invoice_date": "2025-01-18",
       "due_date": "2025-02-17",

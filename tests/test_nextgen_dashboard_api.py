@@ -557,19 +557,25 @@ def test_dashboard_detail_endpoint_exposes_underlying_members() -> None:
 
 
 def test_predictive_category_drilldown_responds() -> None:
+    predictive_payload = client.get(
+        "/api/dashboard",
+        params={"page": "predictive", "scenario_mode": "Conservative"},
+    ).json()
+    category_row = predictive_payload["detail_table"]["rows"][0]
+    category = category_row["interaction_value"]
     response = client.get(
         "/api/dashboard/detail",
         params={
             "page": "predictive",
             "scenario_mode": "Conservative",
             "drilldown_key": "category",
-            "drilldown_value": "electronics",
+            "drilldown_value": category,
         },
     )
     assert response.status_code == 200
     payload = response.json()
     assert payload["page"] == "predictive"
-    assert "electronics" in payload["title"].lower()
+    assert category.lower() in payload["title"].lower()
     assert payload["table"]["rows"] is not None
     assert "share_shift" in payload["table"]["rows"][0]["values"]
 

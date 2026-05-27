@@ -1,8 +1,9 @@
 # Portfolio Application Material
 
 Use this file to turn the project into CV, LinkedIn, and interview language.
-Keep the claims truthful: the data is simulated, while the workflow, modeling,
-tests, API, and dashboard implementation are real.
+Keep the claims truthful: the core ecommerce dataset is a governed sample from
+the UCI Online Retail dataset, while the auxiliary CRM, billing, support, and
+marketing sources are portfolio fixtures aligned to that same customer story.
 
 ## Resume Bullets
 
@@ -10,7 +11,7 @@ tests, API, and dashboard implementation are real.
 
 - Built an end-to-end analytics portfolio platform with Python, PostgreSQL,
   dbt, FastAPI, and a custom desktop-style BI interface.
-- Modeled 100K+ simulated ecommerce orders across customers, products,
+- Modeled 100K real retail transaction lines across customers, products,
   net sales, retention, marketing, forecasting, and operations views.
 - Created advanced business analysis views including Pareto/ABC, RFM customer
   segmentation, retention cohorts, anomaly detection, and forecast scenarios.
@@ -45,8 +46,9 @@ tests, API, and dashboard implementation are real.
 
 ## LinkedIn Featured Project Copy
 
-I built an end-to-end analytics engineering portfolio project that simulates a
-company data environment from ingestion to BI consumption.
+I built an end-to-end analytics engineering portfolio project around a real
+retail transaction dataset, extended with controlled company-source fixtures
+from ingestion to BI consumption.
 
 The project includes Python ingestion, PostgreSQL, dbt models and tests,
 FastAPI endpoints and a custom desktop-style BI interface.
@@ -67,7 +69,7 @@ FastAPI, source health monitoring, and a custom desktop BI interface.
 ## 30-Second Interview Pitch
 
 I built this project to show the full analytics lifecycle, not just a dashboard.
-It ingests simulated company data, models it in PostgreSQL and dbt, validates it
+It ingests a real retail transaction sample plus controlled company-source fixtures, models it in PostgreSQL and dbt, validates it
 with tests, serves governed payloads through FastAPI, and presents the results
 in a custom BI interface. The strongest case is Account Health, where CRM,
 billing, support, and ecommerce signals are combined into a tested account
@@ -75,9 +77,9 @@ watchlist with score, tier, driver, and operational priority.
 
 ## 2-Minute Technical Walkthrough
 
-The project starts with raw data generation and registered source ingestion.
-Ecommerce data covers orders, customers, and products. Additional company
-sources simulate marketing campaigns, support tickets, CRM accounts, and
+The project starts with a canonical retail transaction sample and registered
+source ingestion. Ecommerce data covers order lines, customers, and products
+derived from the same source. Additional company sources provide marketing campaigns, support tickets, CRM accounts, and
 billing invoices. Each registered source lands in raw with batch metadata and
 profiling output.
 

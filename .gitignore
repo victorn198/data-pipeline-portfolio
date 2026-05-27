@@ -27,6 +27,7 @@ dbtproject/logs/
 # Project files
 RUNBOOK.md
 data/local/
+.tmp_data/
 
 # Local BI artifacts and binary report files
 power_bi/

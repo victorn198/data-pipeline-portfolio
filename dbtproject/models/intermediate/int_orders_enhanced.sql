@@ -11,6 +11,7 @@ Business logic: Join orders with customer & product attributes
 
 with orders as (
     select
+        order_line_id,
         order_id,
         customer_id,
         product_id,
@@ -42,6 +43,7 @@ products as (
 ),
 joined as (
     select
+        o.order_line_id,
         o.order_id,
         o.customer_id,
         c.customer_name,

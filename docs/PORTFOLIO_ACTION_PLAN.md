@@ -83,7 +83,7 @@ Your task:
 
 Suggested bullets:
 
-- Built an end-to-end analytics platform with Python, PostgreSQL, dbt, FastAPI, and a custom BI interface, simulating 100K+ sales orders across 10K customers and 2K products.
+- Built an end-to-end analytics platform with Python, PostgreSQL, dbt, FastAPI, and a custom BI interface, modeling 100K real retail transaction lines across 4K+ customers and 3K+ products.
 - Developed dbt models, snapshots, SQL quality checks, and operational monitoring views to support reliable BI reporting.
 - Created an API-first multi-page analytics dashboard with period-over-period KPIs, drilldown analysis, and shared filters across business views.
 

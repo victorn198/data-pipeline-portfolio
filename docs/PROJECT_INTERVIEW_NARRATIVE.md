@@ -4,13 +4,13 @@
 This project is an end-to-end ecommerce analytics platform that goes beyond a static dashboard. It covers ingestion, warehouse modeling, testing, monitoring, API delivery, and an interactive web BI application focused on decision-making.
 
 ## 30-Second Version
-I built an analytics portfolio project that simulates an ecommerce business end to end. It ingests data with Python, models it in PostgreSQL and dbt, runs data quality checks, and serves a custom FastAPI dashboard with business analysis such as Pareto, RFM, retention cohorts, anomaly detection, and predictive outlook. The main goal was to show that I can think like both a data analyst and an analytics engineer.
+I built an analytics portfolio project around a real retail transaction sample, then extended it into a company-style analytics environment. It ingests data with Python, models it in PostgreSQL and dbt, runs data quality checks, and serves a custom FastAPI dashboard with business analysis such as Pareto, RFM, retention cohorts, anomaly detection, and predictive outlook. The main goal was to show that I can think like both a data analyst and an analytics engineer.
 
 ## 60-Second Version
 The project started as a reporting portfolio, but I deliberately pushed it toward a more realistic analytics product. Instead of stopping at KPI cards, I added drilldowns, storytelling, customer segmentation, product concentration analysis, retention cohorts, and a predictive view for next-step planning. I also moved away from a simple app framework into a custom API-first architecture, because I wanted to show stronger engineering ownership. As the dashboard became more analytical, I also optimized performance by caching payloads, vectorizing expensive calculations, and reducing heavy front-end re-renders so the app stayed usable.
 
 ## 3-Minute Walkthrough
-1. Data comes from Python extractors and simulated ecommerce generation.
+1. Data comes from a canonical UCI Online Retail sample loaded by Python extractors, plus controlled registered sources for CRM, billing, support, and marketing.
 2. PostgreSQL acts as the warehouse landing and reporting store.
 3. dbt builds staging, marts, snapshots, and tests.
 4. FastAPI exposes governed dashboard payloads.
@@ -37,8 +37,8 @@ The project started as a reporting portfolio, but I deliberately pushed it towar
 ## Why The Main Features Exist
 
 ## How To Describe The Multi-Source Roadmap
-The project currently proves the full analytics lifecycle through a simulated
-ecommerce domain. The planned expansion is to make the ingestion layer broader
+The project currently proves the full analytics lifecycle through a canonical
+retail ecommerce domain. The planned expansion is to make the ingestion layer broader
 inside the same company analytics story, without turning the project into an
 unfinished universal connector framework.
 
