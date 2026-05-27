@@ -153,7 +153,7 @@ def render_architecture() -> None:
         draw,
         (56, 104),
         (1050, 34),
-        "End-to-end analytics engineering portfolio: ingestion, warehouse, BI, API, and desktop-first analytics UX.",
+        "End-to-end analytics engineering portfolio: ingestion, warehouse, semantic API, and desktop-first analytics UX.",
         23,
         MUTED,
     )
@@ -161,11 +161,11 @@ def render_architecture() -> None:
     draw.text((1364, 53), "Portfolio-ready stack", font=font(16), fill=BLUE)
 
     boxes = [
-        FlowBox("1. Extractors", ["Python simulators", "Fake Store API seeds", "scaled ecommerce data"]),
+        FlowBox("1. Extractors", ["Canonical UCI retail sample", "registered CSV/JSON/API feeds", "rebuildable source layer"]),
         FlowBox("2. Raw Layer", ["PostgreSQL raw schema", "orders_raw", "customers_raw", "products_raw"]),
         FlowBox("3. dbt Staging", ["stg_orders", "stg_customers", "stg_products", "stg_snapshot_current"]),
         FlowBox("4. dbt Core", ["int_orders_enhanced", "fct_sales", "account + marketing marts"]),
-        FlowBox("5. Semantic + BI", ["Measure dictionary", "Dashboard model", "API payload contracts"]),
+        FlowBox("5. Semantic Layer", ["Measure dictionary", "Dashboard model", "API payload contracts"]),
         FlowBox("6. Delivery", ["FastAPI + Desktop BI", "Spotlight windows", "Compare + bookmarks"]),
     ]
     x, y, bw, bh, gap = 60, 210, 220, 180, 30
@@ -192,9 +192,9 @@ def render_architecture() -> None:
     rounded(draw, (810, 470, 1540, 820), "#183765", BORDER, 24)
     draw.text((840, 506), "Current scale", font=font(18, True), fill=TEXT)
     scale = [
-        ("100k+", "simulated orders in the standard project load"),
-        ("10k", "customers generated for portfolio-scale slicing"),
-        ("2k", "products generated for Pareto / ABC / mix analysis"),
+        ("100k", "real retail transaction lines in the standard load"),
+        ("4k+", "customers derived from the canonical retail source"),
+        ("3k+", "products derived for Pareto / ABC / mix analysis"),
         ("9+", "analytics pages in the desktop dashboard experience"),
         ("26", "API, source, and semantic tests passing in the suite"),
     ]

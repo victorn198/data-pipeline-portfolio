@@ -10,6 +10,8 @@ sources:
       - name: ORDERS
         identifier: orders_raw
         columns:
+          - name: ORDER_LINE_ID
+            tests: [not_null]
           - name: ORDER_ID
             tests: [not_null]
           - name: CUSTOMER_ID
@@ -83,11 +85,14 @@ sources:
 
 models:
   - name: stg_orders
-    description: Standardized orders from RAW. Applies typing/renames and keeps a 1:1 shape with the source.
+    description: Standardized order lines from RAW. Applies typing/renames and keeps a 1:1 shape with the source transaction lines.
     columns:
-      - name: order_id
-        description: Business identifier of the order.
+      - name: order_line_id
+        description: Stable business identifier of the transaction line.
         tests: [unique, not_null]
+      - name: order_id
+        description: Business identifier of the invoice/order; one order can contain many lines.
+        tests: [not_null]
       - name: customer_id
         description: Business identifier of the customer who placed the order.
         tests: [not_null]
@@ -218,15 +223,19 @@ models:
         tests: [unique, not_null]
 
   - name: fct_sales
-    description: "Sales fact table (grain: one row per order_id). sales_amount is net of cancelled orders; gross_sales_amount keeps the raw order value."
+    description: "Sales fact table (grain: one row per order line). sales_amount is net of cancelled lines; gross_sales_amount keeps the raw line value."
     columns:
       - name: sales_key
         description: Surrogate key of the fact table row.
         tests: [unique, not_null]
 
-      - name: order_id
-        description: Business identifier of the order represented by this fact row.
+      - name: order_line_id
+        description: Stable business identifier of the order line represented by this fact row.
         tests: [unique, not_null]
+
+      - name: order_id
+        description: Business identifier of the invoice/order; one order can contain many fact rows.
+        tests: [not_null]
 
       - name: customer_key
         description: Foreign key to dim_customer.
@@ -247,15 +256,15 @@ models:
                 field: product_key
 
       - name: gross_sales_amount
-        description: Raw order value before cancellation adjustment.
+        description: Raw order-line value before cancellation adjustment.
         tests: [not_null]
 
       - name: sales_amount
-        description: Net sales amount used by dashboard revenue KPIs; cancelled orders contribute zero.
+        description: Net sales amount used by dashboard revenue KPIs; cancelled lines contribute zero.
         tests: [not_null]
 
       - name: cancelled_sales_amount
-        description: Order value removed from net sales because the order was cancelled.
+        description: Order-line value removed from net sales because the line was cancelled.
         tests: [not_null]
 
       - name: is_cancelled

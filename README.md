@@ -11,7 +11,8 @@ semantic definitions, API delivery, and an interactive analytics interface.
 
 ## TL;DR
 
-- `100,000+` simulated orders across `10,000` customers and `2,000` products
+- `100,000` real retail transaction lines from a governed UCI Online Retail sample,
+  with `4,000+` customers and `3,000+` products
 - `dbt` warehouse with marts, tests, and snapshot modeling
 - FastAPI analytics backend plus a desktop-style BI interface
 - business analysis methods beyond topline dashboards:
@@ -42,6 +43,8 @@ semantic definitions, API delivery, and an interactive analytics interface.
 ## What This Repository Demonstrates
 
 - ingestion into a `raw` layer
+- consolidated canonical retail dataset with derived customers, products, and
+  order lines from the same source
 - registered CSV/JSON/API-style source ingestion with load metadata and profiling
 - no-code local file intake in the app: CSV/JSON parsing, column profiling, suggested mappings, and preview analysis before governed promotion
 - warehouse modeling with `dbt`

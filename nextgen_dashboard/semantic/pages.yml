@@ -103,5 +103,5 @@ pages:
     cards: [orders_count, records_count, avg_lines_per_order, success_rate]
     primary_trend_metric: orders_count
     allowed_actions: [compare_previous_period, change_granularity]
-    insight_note: Use Orders Count first, then read row intensity and non-cancelled rate to understand operational pressure. Current fact grain is one row per order.
+    insight_note: Use Orders Count first, then read line intensity and non-cancelled rate to understand operational pressure. Current fact grain is one row per transaction line.
 

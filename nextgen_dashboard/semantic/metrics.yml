@@ -29,7 +29,7 @@ metrics:
     allowed_comparisons: [previous_period]
   cancellation_rate:
     label: Cancellation Rate
-    description: Share of gross order value removed by cancelled orders.
+    description: Share of gross transaction-line value removed by cancelled lines.
     format: percent
     aggregation: derived
     formula_hint: cancelled_sales_amount / gross_sales_amount
@@ -263,10 +263,10 @@ metrics:
     allowed_comparisons: [previous_period]
   records_count:
     label: Records in Window
-    description: Number of transaction rows inside the selected window.
+    description: Number of transaction lines inside the selected window.
     format: number
     aggregation: count
-    source_column: order_id
+    source_column: order_line_id
     dimensions: [category, city, order_date]
     allowed_granularities: [Day, Month, Quarter, Year]
     allowed_comparisons: [previous_period]
@@ -281,7 +281,7 @@ metrics:
     allowed_comparisons: [previous_period]
   success_rate:
     label: Non-Cancelled Rate
-    description: Share of order rows that were not cancelled in the selected window.
+    description: Share of transaction lines that were not cancelled in the selected window.
     format: percent
     aggregation: derived
     formula_hint: non_cancelled_rows / total_rows

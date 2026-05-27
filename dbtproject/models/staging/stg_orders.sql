@@ -9,6 +9,7 @@ with source as (
 ),
 cleaned as (
     select
+        upper(trim(ORDER_LINE_ID::text)) as order_line_id,
         upper(trim(ORDER_ID::text)) as order_id,
         upper(trim(CUSTOMER_ID::text)) as customer_id,
         upper(trim(PRODUCT_ID::text)) as product_id,
@@ -23,10 +24,12 @@ cleaned as (
         lower(trim(STATUS::text)) as status_raw,
         current_timestamp as dbt_loaded_at
     from source
-    where ORDER_ID is not null
+    where ORDER_LINE_ID is not null
+      and ORDER_ID is not null
 ),
 validated as (
     select
+        order_line_id,
         order_id,
         customer_id,
         product_id,
@@ -56,7 +59,7 @@ deduplicated as (
         select
             *,
             row_number() over (
-                partition by order_id
+                partition by order_line_id
                 order by order_date desc, dbt_loaded_at desc
             ) as rn
         from validated

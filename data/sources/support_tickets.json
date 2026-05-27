@@ -1,7 +1,7 @@
 [
   {
     "ticket_id": "TCK_0001",
-    "customer_id": "CUST_000001",
+    "customer_id": "CUST_17850",
     "opened_at": "2025-01-04T10:15:00",
     "closed_at": "2025-01-04T18:30:00",
     "issue_type": "delivery_delay",
@@ -11,7 +11,7 @@
   },
   {
     "ticket_id": "TCK_0002",
-    "customer_id": "CUST_000044",
+    "customer_id": "CUST_13047",
     "opened_at": "2025-02-12T09:05:00",
     "closed_at": "2025-02-13T11:20:00",
     "issue_type": "refund_request",
@@ -21,7 +21,7 @@
   },
   {
     "ticket_id": "TCK_0003",
-    "customer_id": "CUST_000079",
+    "customer_id": "CUST_12583",
     "opened_at": "2025-03-21T14:40:00",
     "closed_at": null,
     "issue_type": "product_question",
@@ -31,7 +31,7 @@
   },
   {
     "ticket_id": "TCK_0004",
-    "customer_id": "CUST_000120",
+    "customer_id": "CUST_15291",
     "opened_at": "2025-04-09T16:55:00",
     "closed_at": "2025-04-09T17:25:00",
     "issue_type": "payment_issue",

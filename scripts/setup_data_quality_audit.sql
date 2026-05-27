@@ -35,7 +35,8 @@ BEGIN
   -- Rule 1: Critical nulls in fact keys/date.
   SELECT COUNT(*) INTO v_error_count
   FROM marts.fct_sales
-  WHERE order_id IS NULL
+  WHERE order_line_id IS NULL
+     OR order_id IS NULL
      OR customer_key IS NULL
      OR product_key IS NULL
      OR order_date IS NULL;
@@ -51,16 +52,16 @@ BEGIN
     CASE WHEN v_error_count = 0 THEN 'PASS' ELSE 'FAIL' END,
     v_error_count,
     'ERROR',
-    'Checks nulls in ORDER_ID, CUSTOMER_KEY, PRODUCT_KEY, ORDER_DATE.'
+    'Checks nulls in ORDER_LINE_ID, ORDER_ID, CUSTOMER_KEY, PRODUCT_KEY, ORDER_DATE.'
   );
   v_failed_rules := v_failed_rules + CASE WHEN v_error_count = 0 THEN 0 ELSE 1 END;
 
-  -- Rule 2: Duplicate order_id in fact.
+  -- Rule 2: Duplicate order_line_id in fact.
   SELECT COALESCE(SUM(dup_count), 0) INTO v_error_count
   FROM (
     SELECT (COUNT(*) - 1) AS dup_count
     FROM marts.fct_sales
-    GROUP BY order_id
+    GROUP BY order_line_id
     HAVING COUNT(*) > 1
   ) d;
 
@@ -70,12 +71,12 @@ BEGIN
   VALUES (
     v_run_id,
     v_checked_at,
-    'duplicate_order_id_fact_sales',
+    'duplicate_order_line_id_fact_sales',
     'marts.fct_sales',
     CASE WHEN v_error_count = 0 THEN 'PASS' ELSE 'FAIL' END,
     v_error_count,
     'ERROR',
-    'Counts duplicate ORDER_ID rows in the fact table.'
+    'Counts duplicate ORDER_LINE_ID rows in the fact table.'
   );
   v_failed_rules := v_failed_rules + CASE WHEN v_error_count = 0 THEN 0 ELSE 1 END;
 

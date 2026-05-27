@@ -25,8 +25,9 @@ def _ensure_raw_tables(cur):
         "CREATE TABLE IF NOT EXISTS raw.products_raw (product_id TEXT, product_name TEXT, category TEXT, unit_price DOUBLE PRECISION, stock_quantity INTEGER)"
     )
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS raw.orders_raw (order_id TEXT, customer_id TEXT, product_id TEXT, order_date TIMESTAMP, quantity INTEGER, unit_price DOUBLE PRECISION, total_amount DOUBLE PRECISION, status TEXT)"
+        "CREATE TABLE IF NOT EXISTS raw.orders_raw (order_line_id TEXT, order_id TEXT, customer_id TEXT, product_id TEXT, order_date TIMESTAMP, quantity INTEGER, unit_price DOUBLE PRECISION, total_amount DOUBLE PRECISION, status TEXT)"
     )
+    cur.execute("ALTER TABLE raw.orders_raw ADD COLUMN IF NOT EXISTS order_line_id TEXT")
 
 
 def _truncate_raw_tables(cur):
@@ -47,10 +48,10 @@ def main():
     - Connect to PostgreSQL
     - Ensure RAW tables exist
     - Optionally truncate RAW tables (full refresh mode)
-    - Generate deterministic sample data and load into RAW (incremental by default)
+    - Load the canonical UCI Online Retail sample into RAW (incremental by default)
     - Verify final counts
     """
-    parser = argparse.ArgumentParser(description="Load Fake Store data into PostgreSQL RAW")
+    parser = argparse.ArgumentParser(description="Load canonical Online Retail data into PostgreSQL RAW")
     parser.add_argument(
         "--mode",
         choices=["incremental", "full_refresh"],
@@ -94,7 +95,7 @@ def main():
         cur.close()
         print("RAW tables ready for load.")
 
-        print("Loading data from local deterministic templates...")
+        print("Loading data from the canonical Online Retail sample...")
         load_customers(conn)
         load_products(conn)
         load_orders(conn)
@@ -106,7 +107,7 @@ def main():
         cur.execute("SELECT COUNT(*) FROM raw.products_raw")
         print(f"Products: {cur.fetchone()[0]}")
         cur.execute("SELECT COUNT(*) FROM raw.orders_raw")
-        print(f"Orders: {cur.fetchone()[0]}")
+        print(f"Order lines: {cur.fetchone()[0]}")
         cur.close()
 
         print("Load complete. RAW data is ready for dbt.")

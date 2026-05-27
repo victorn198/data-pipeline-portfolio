@@ -21,8 +21,9 @@ The repository is already stronger than a standard analyst portfolio:
 - `docs/`, tests, and benchmarks make the project defensible in interviews.
 
 The current limitation is source breadth inside the same company analytics
-story. Today the warehouse is built around a simulated ecommerce domain:
-customers, products, and orders. That is a good base, but the next
+story. Today the warehouse is built around a canonical retail ecommerce domain:
+customers, products, and order lines derived from the UCI Online Retail sample.
+That is a good base, but the next
 employability improvement is to show that the same analytics workflow can
 handle the business systems analysts usually combine: CRM, billing, support,
 marketing, product events, and operational reference tables.
