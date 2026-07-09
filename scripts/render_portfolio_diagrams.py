@@ -11,15 +11,16 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "diagrams"
 W, H = 1600, 900
 
-BG = "#0b1830"
-PANEL = "#173763"
-PANEL_2 = "#1f5f93"
-BORDER = "#3f7fc2"
-TEXT = "#eef5ff"
-MUTED = "#9fb2ce"
-ACCENT = "#ffb75c"
-BLUE = "#82c5ff"
-GREEN = "#8bdcb8"
+BG = "#041021"
+SURFACE_DEEP = "#0a1d35"
+PANEL = "#142f52"
+PANEL_2 = "#1a426c"
+BORDER = "#477eaf"
+TEXT = "#dce9ff"
+MUTED = "#9cb4d7"
+ACCENT = "#f7b267"
+BLUE = "#67b8ff"
+GREEN = "#69d4b4"
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -118,7 +119,7 @@ def draw_fit_text(
         draw.text((x, y + idx * line_h), line, font=fnt, fill=color, anchor=anchor)
 
 
-def rounded(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill: str, outline: str = BORDER, radius: int = 22) -> None:
+def rounded(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], fill: str, outline: str = BORDER, radius: int = 16) -> None:
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2)
 
 
@@ -133,128 +134,154 @@ class FlowBox:
     body: list[str]
 
 
-def draw_flow_box(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], item: FlowBox, fill: str) -> None:
+def draw_header(
+    draw: ImageDraw.ImageDraw,
+    eyebrow: str,
+    title: str,
+    subtitle: str,
+    tag: str,
+) -> None:
+    draw.text((60, 54), eyebrow, font=font(15, True), fill=BLUE)
+    draw.text((60, 82), title, font=font(40, True), fill=TEXT)
+    draw_fit_text(draw, (60, 134), (1160, 34), subtitle, 21, MUTED)
+    rounded(draw, (1322, 52, 1540, 96), "#102a49", BLUE, 14)
+    tag_w, _ = text_size(draw, tag, font(15, True))
+    draw.text((1431 - tag_w // 2, 66), tag, font=font(15, True), fill=BLUE)
+
+
+def draw_flow_box(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    item: FlowBox,
+    fill: str,
+    stage: str,
+) -> None:
     x1, y1, x2, y2 = box
-    rounded(draw, box, fill, radius=22)
-    draw_fit_text(draw, (x1 + 20, y1 + 22), (x2 - x1 - 40, 34), item.title, 19, TEXT, True, 15)
-    y = y1 + 68
-    body_h = y2 - y - 18
+    rounded(draw, box, fill, radius=16)
+    draw.text((x1 + 18, y1 + 16), stage, font=font(13, True), fill=BLUE)
+    draw_fit_text(draw, (x1 + 18, y1 + 42), (x2 - x1 - 36, 36), item.title, 20, TEXT, True, 15)
+    y = y1 + 94
+    body_h = y2 - y - 20
     line_budget = max(1, body_h // max(1, len(item.body)))
     for line in item.body:
-        draw_fit_text(draw, (x1 + 20, y), (x2 - x1 - 40, line_budget - 4), line, 20, "#d8e6f7", False, 14)
+        draw_fit_text(draw, (x1 + 18, y), (x2 - x1 - 36, line_budget - 4), line, 17, "#d3e2f7", False, 13)
         y += line_budget
 
 
 def render_architecture() -> None:
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-    draw.text((56, 52), "NextGen Analytics Architecture", font=font(42, True), fill=TEXT)
-    draw_fit_text(
+    draw_header(
         draw,
-        (56, 104),
-        (1050, 34),
-        "End-to-end analytics engineering portfolio: ingestion, warehouse, semantic API, and desktop-first analytics UX.",
-        23,
-        MUTED,
+        "DATA PRODUCT ARCHITECTURE",
+        "NextGen Analytics Architecture",
+        "From source ingestion to governed metrics and decision-ready desktop workflows.",
+        "END-TO-END FLOW",
     )
-    rounded(draw, (1340, 34, 1545, 86), "#12345b", BLUE, 18)
-    draw.text((1364, 53), "Portfolio-ready stack", font=font(16), fill=BLUE)
 
     boxes = [
-        FlowBox("1. Extractors", ["Canonical UCI retail sample", "registered CSV/JSON/API feeds", "rebuildable source layer"]),
-        FlowBox("2. Raw Layer", ["PostgreSQL raw schema", "orders_raw", "customers_raw", "products_raw"]),
-        FlowBox("3. dbt Staging", ["stg_orders", "stg_customers", "stg_products", "stg_snapshot_current"]),
-        FlowBox("4. dbt Core", ["int_orders_enhanced", "fct_sales", "account + marketing marts"]),
-        FlowBox("5. Semantic Layer", ["Measure dictionary", "Dashboard model", "API payload contracts"]),
-        FlowBox("6. Delivery", ["FastAPI + Desktop BI", "Spotlight windows", "Compare + bookmarks"]),
+        FlowBox("Source ingestion", ["UCI retail sample", "CRM, billing, support", "CSV / JSON / API feeds"]),
+        FlowBox("Raw landing", ["PostgreSQL raw schema", "batch metadata", "source profiling"]),
+        FlowBox("dbt standardization", ["staging contracts", "clean source tables", "snapshot state"]),
+        FlowBox("Core metrics", ["enhanced orders", "sales fact", "account + marketing marts"]),
+        FlowBox("Semantic API", ["metric definitions", "dashboard payloads", "governed contracts"]),
+        FlowBox("Decision desktop", ["Account Health", "Source Health", "drilldown workflows"]),
     ]
-    x, y, bw, bh, gap = 60, 210, 220, 180, 30
+    x, y, bw, bh, gap = 60, 220, 220, 178, 28
     for idx, item in enumerate(boxes):
         x1 = x + idx * (bw + gap)
-        draw_flow_box(draw, (x1, y, x1 + bw, y + bh), item, PANEL_2 if idx >= 3 else PANEL)
+        draw_flow_box(
+            draw,
+            (x1, y, x1 + bw, y + bh),
+            item,
+            PANEL_2 if idx >= 3 else PANEL,
+            f"STAGE {idx + 1:02d}",
+        )
         if idx < len(boxes) - 1:
-            arrow(draw, x1 + bw + 7, y + bh // 2, x1 + bw + gap - 8)
+            arrow(draw, x1 + bw + 3, y + bh // 2, x1 + bw + gap - 5)
 
-    rounded(draw, (60, 470, 760, 820), "#132d54", BORDER, 24)
-    draw.text((90, 506), "What the repository proves", font=font(18, True), fill=TEXT)
+    rounded(draw, (60, 458, 770, 822), SURFACE_DEEP, BORDER, 16)
+    draw.text((88, 492), "Trust controls", font=font(21, True), fill=TEXT)
+    draw.text((88, 526), "Visible quality signals before a metric reaches a decision screen.", font=font(16), fill=MUTED)
     proof = [
-        "Real analytics layers instead of a single dashboard artifact",
-        "dbt tests, snapshots, monitoring objects, and benchmark tooling",
-        "Desktop-first BI UX with Spotlight, Compare, bookmarks, and actions",
-        "Security hardening around agent workflows and mutable dashboard state",
+        "Source batches and profiling are visible in the product",
+        "dbt tests and snapshots protect model contracts",
+        "Semantic API keeps metric definitions consistent",
+        "Mutations stay disabled unless explicitly reviewed",
     ]
-    py = 568
+    py = 584
     for item in proof:
-        draw.ellipse((91, py + 3, 107, py + 19), fill=GREEN)
-        draw_fit_text(draw, (124, py), (590, 28), item, 19, TEXT, False, 14)
-        py += 56
+        draw.ellipse((90, py + 4, 104, py + 18), fill=GREEN)
+        draw_fit_text(draw, (124, py), (610, 27), item, 17, TEXT, False, 14)
+        py += 52
 
-    rounded(draw, (810, 470, 1540, 820), "#183765", BORDER, 24)
-    draw.text((840, 506), "Current scale", font=font(18, True), fill=TEXT)
+    rounded(draw, (800, 458, 1540, 822), PANEL, BORDER, 16)
+    draw.text((828, 492), "Decision-ready outputs", font=font(21, True), fill=TEXT)
+    draw.text((828, 526), "The project is organized around questions a business team can act on.", font=font(16), fill=MUTED)
     scale = [
-        ("100k", "real retail transaction lines in the standard load"),
-        ("4k+", "customers derived from the canonical retail source"),
-        ("3k+", "products derived for Pareto / ABC / mix analysis"),
-        ("9+", "analytics pages in the desktop dashboard experience"),
-        ("26", "API, source, and semantic tests passing in the suite"),
+        ("REVENUE", "trends, concentration, ticket, and channel reading"),
+        ("RETENTION", "RFM segments, cohorts, and customer behavior"),
+        ("ACCOUNT HEALTH", "billing, support, CRM, and ecommerce context"),
+        ("SOURCE HEALTH", "load metadata, nulls, duplicates, and reliability"),
     ]
-    sy = 560
+    sy = 584
     for number, label in scale:
-        draw.text((850, sy), number, font=font(30, True), fill=ACCENT)
-        draw_fit_text(draw, (955, sy + 5), (500, 30), label, 20, TEXT, False, 14)
-        sy += 54
+        draw_fit_text(draw, (830, sy), (180, 26), number, 16, ACCENT, True, 13)
+        draw_fit_text(draw, (1038, sy), (460, 28), label, 17, TEXT, False, 14)
+        sy += 53
+
+    rounded(draw, (60, 850, 1540, 880), "#0b2340", "#214d78", 12)
+    draw.text((82, 857), "SOURCE  ->  RAW  ->  DBT  ->  SEMANTIC API  ->  DESKTOP DECISION WORKFLOW", font=font(14, True), fill=BLUE)
 
     img.save(OUT / "architecture-overview.png")
 
 
 def draw_layer(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], title: str, items: list[str], title_color: str = BLUE) -> None:
     x1, y1, x2, y2 = box
-    rounded(draw, box, "#162f56", BORDER, 24)
-    draw_fit_text(draw, (x1 + 22, y1 + 32), (x2 - x1 - 44, 34), title, 25, title_color, True, 18)
-    y = y1 + 90
+    rounded(draw, box, PANEL, BORDER, 16)
+    draw_fit_text(draw, (x1 + 20, y1 + 22), (x2 - x1 - 40, 32), title, 21, title_color, True, 16)
+    draw.line((x1 + 20, y1 + 64, x2 - 20, y1 + 64), fill="#315f8d", width=2)
+    y = y1 + 88
     for item in items:
-        pill = (x1 + 18, y, x2 - 18, y + 58)
-        rounded(draw, pill, "#10233f", BORDER, 16)
-        draw_fit_text(draw, (pill[0] + 16, pill[1] + 16), (pill[2] - pill[0] - 32, 24), item, 20, TEXT, False, 13)
-        y += 88
+        pill = (x1 + 18, y, x2 - 18, y + 52)
+        rounded(draw, pill, SURFACE_DEEP, "#3e79ad", 12)
+        draw_fit_text(draw, (pill[0] + 14, pill[1] + 14), (pill[2] - pill[0] - 28, 24), item, 17, TEXT, False, 13)
+        y += 76
 
 
 def render_warehouse() -> None:
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-    draw.text((56, 52), "Warehouse Model and Database Layers", font=font(42, True), fill=TEXT)
-    draw_fit_text(
+    draw_header(
         draw,
-        (56, 104),
-        (1280, 34),
-        "Generated from the repository structure: raw ingestion, dbt transformations, marts, monitoring, and dashboard-facing semantics.",
-        23,
-        MUTED,
+        "WAREHOUSE AND OBSERVABILITY",
+        "Warehouse Model and Database Layers",
+        "A governed route from source landing to business marts, service contracts, and reliability signals.",
+        "MODEL LINEAGE",
     )
-    rounded(draw, (1340, 34, 1545, 86), "#12345b", BLUE, 18)
-    draw.text((1364, 53), "Portfolio-ready stack", font=font(16), fill=BLUE)
 
     layers = [
-        ("RAW", ["raw.orders_raw", "raw.customers_raw", "raw.products_raw"], BLUE),
+        ("RAW", ["orders_raw", "customers_raw", "products_raw"], BLUE),
         ("STAGING", ["stg_orders", "stg_customers", "stg_products", "stg_customer_snapshot"], BLUE),
         ("INTERMEDIATE", ["int_orders_enhanced"], BLUE),
         ("MARTS", ["dim_customer", "dim_product", "fct_sales", "mart_account_health", "mart_marketing_efficiency"], BLUE),
-        ("MONITORING", ["data_quality_audit", "alerts", "operational_views", "source_health"], ACCENT),
+        ("OBSERVABILITY", ["quality audit", "alerts", "operational views", "source health"], ACCENT),
     ]
-    x, y, bw, bh, gap = 52, 190, 250, 570, 54
+    x, y, bw, bh, gap = 60, 220, 264, 540, 26
     for idx, (title, items, color) in enumerate(layers):
         x1 = x + idx * (bw + gap)
         draw_layer(draw, (x1, y, x1 + bw, y + bh), title, items, color)
         if idx < len(layers) - 1:
-            arrow(draw, x1 + bw + 8, y + 280, x1 + bw + gap - 16)
+            arrow(draw, x1 + bw + 3, y + bh // 2, x1 + bw + gap - 5)
 
-    rounded(draw, (52, 790, 1492, 852), "#132d54", BORDER, 20)
+    rounded(draw, (60, 800, 1540, 870), SURFACE_DEEP, BORDER, 16)
+    draw.text((82, 818), "MODEL CONTRACT", font=font(14, True), fill=ACCENT)
     draw_fit_text(
         draw,
-        (78, 817),
-        (1365, 28),
-        "Warehouse story: raw landing in PostgreSQL -> dbt standardization -> marts for BI/API -> monitoring objects for trust and observability.",
-        20,
+        (82, 842),
+        (1380, 24),
+        "Raw landing in PostgreSQL -> dbt standardization -> marts for BI and API -> observable quality controls.",
+        17,
         TEXT,
         False,
         14,
