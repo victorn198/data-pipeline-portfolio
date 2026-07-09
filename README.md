@@ -17,7 +17,7 @@ source ingestion through trusted business metrics and investigation-ready views.
 > sample. CRM, billing, support, and marketing records are synthetic fixtures
 > created for the case study. No client data is included.
 
-**See it in action:** [90-second product walkthrough](./assets/gallery/nextgen-demo.webm) | [guided demo script](./docs/DEMO_SCRIPT.md)
+**Explore the public demo:** [NextGen Analytics Desktop tour](https://victorn198.github.io/data-pipeline-portfolio/) | [90-second product walkthrough](./assets/gallery/nextgen-demo.webm) | [guided demo script](./docs/DEMO_SCRIPT.md)
 
 ## What This Proves
 

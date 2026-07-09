@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Interactive public tour of the NextGen Analytics Desktop portfolio.">
+    <title>NextGen Analytics Desktop | Public Tour</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">N</span>
+          <div>
+            <strong>NextGen Analytics Desktop</strong>
+            <span>Public portfolio tour</span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="status"><i></i> Static demo</span>
+          <a href="https://github.com/victorn198/data-pipeline-portfolio" rel="noreferrer">Source</a>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar" aria-label="Demo views">
+          <p class="sidebar-label">Decision views</p>
+          <div class="view-list" role="tablist" aria-label="Select a dashboard view">
+            <button class="view-button is-active" type="button" role="tab" aria-selected="true" data-view="account-health">
+              <span>01</span> Account Health
+            </button>
+            <button class="view-button" type="button" role="tab" aria-selected="false" data-view="sales-overview">
+              <span>02</span> Sales Overview
+            </button>
+            <button class="view-button" type="button" role="tab" aria-selected="false" data-view="source-health">
+              <span>03</span> Source Health
+            </button>
+            <button class="view-button" type="button" role="tab" aria-selected="false" data-view="predictive-outlook">
+              <span>04</span> Predictive Outlook
+            </button>
+          </div>
+          <div class="sidebar-note">
+            <b>About this tour</b>
+            <p>These are real captures of the local FastAPI and dbt project, arranged as a public walkthrough.</p>
+          </div>
+        </aside>
+
+        <section class="demo-stage" aria-live="polite">
+          <div class="stage-heading">
+            <div>
+              <p id="view-kicker" class="kicker">Operational priority</p>
+              <h1 id="view-title">Account Health</h1>
+            </div>
+            <span id="view-tag" class="view-tag">Multi-source watchlist</span>
+          </div>
+          <div class="preview-frame">
+            <img id="demo-image" src="assets/gallery/desktop-account-health.png" alt="Account Health dashboard watchlist">
+          </div>
+        </section>
+
+        <aside class="context-panel">
+          <p class="sidebar-label">Reading guide</p>
+          <h2 id="context-title">Who needs follow-up first?</h2>
+          <p id="context-copy">CRM, billing, support, and ecommerce signals are consolidated into one account-level priority queue.</p>
+          <dl id="context-facts">
+            <div><dt>Decision</dt><dd>Prioritize owner follow-up</dd></div>
+            <div><dt>Signals</dt><dd>Risk tier, balance, tickets</dd></div>
+            <div><dt>Output</dt><dd>Explainable watchlist</dd></div>
+          </dl>
+          <a class="local-link" href="https://github.com/victorn198/data-pipeline-portfolio#quick-start" rel="noreferrer">Run the full local app</a>
+        </aside>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

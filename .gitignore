@@ -5,6 +5,7 @@ venv/
 .dbt-venv/
 .pip-cache/
 /.tmp/
+/_site/
 __pycache__/
 *.pyc
 .mypy_cache/

@@ -17,7 +17,7 @@ da ingestão de fontes às métricas confiáveis e às telas de investigação.
 > do UCI Online Retail. Os registros de CRM, billing, suporte e marketing são
 > dados sintéticos criados para este estudo. Nenhum dado de cliente foi incluído.
 
-**Veja em funcionamento:** [demonstração do produto em 90 segundos](./assets/gallery/nextgen-demo.webm) | [roteiro guiado](./docs/DEMO_SCRIPT.md)
+**Explore a demonstração pública:** [tour do NextGen Analytics Desktop](https://victorn198.github.io/data-pipeline-portfolio/) | [demonstração do produto em 90 segundos](./assets/gallery/nextgen-demo.webm) | [roteiro guiado](./docs/DEMO_SCRIPT.md)
 
 ## O que este projeto comprova
 
