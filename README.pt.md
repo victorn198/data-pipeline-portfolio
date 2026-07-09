@@ -55,7 +55,7 @@ profiling de nulos visíveis antes de promover os dados para os modelos de BI.
 
 <img src="./assets/gallery/nextgen-demo.gif" alt="Demo curta do desktop analítico NextGen" width="900">
 
-Arquivo de gravação interativa: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
+O GIF acima é a prévia compatível com o navegador. A gravação interativa completa está disponível para [download em WebM](./assets/gallery/nextgen-demo.webm).
 
 ## Escopo Técnico
 

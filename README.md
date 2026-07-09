@@ -53,7 +53,7 @@ visible before data is promoted into BI-ready models.
 
 <img src="./assets/gallery/desktop-workflow.png" alt="Layered investigation workflow with Sales Overview, Predictive Outlook, and Account Health" width="900">
 
-Short interaction preview: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
+The GIF below is the browser-friendly preview. The full interaction recording is available as a [WebM download](./assets/gallery/nextgen-demo.webm).
 
 <img src="./assets/gallery/nextgen-demo.gif" alt="Short NextGen analytics desktop demo" width="900">
 
