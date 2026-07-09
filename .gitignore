@@ -49,3 +49,19 @@ assets/prompts/
 tools/screenshot-to-code/
 scripts/extract_design_with_s2c.py
 test_postgres.py
+
+# Local-only agent instructions and portfolio review material
+/.agents/
+/.codex/
+/AGENTS.md
+/docs/APPLICATION_MATERIAL.md
+/docs/GITHUB_PROFILE_STRATEGY.md
+/docs/LINKEDIN_PROJECT_COPY.md
+/docs/PORTFOLIO_ACTION_PLAN.md
+/docs/PRIVATE_*.md
+/docs/PRODUCT_REVIEW.md
+/docs/PROJECT_INTERVIEW_NARRATIVE.md
+/docs/RECRUITER_REVIEW.md
+/docs/WORKTREE_CLEANUP_PLAN.md
+/docs/POWER_BI_API_TEST.md
+/scripts/powerbi_push_semantic_model.py

@@ -70,7 +70,6 @@ Interactive recording file: [nextgen-demo.webm](./assets/gallery/nextgen-demo.we
 Account Health case:
 
 - [Account Health Case Study](./docs/ACCOUNT_HEALTH_CASE_STUDY.md)
-- [Portfolio Application Material](./docs/APPLICATION_MATERIAL.md)
 - [Demo Script](./docs/DEMO_SCRIPT.md)
 - dbt mart: `dbtproject/models/marts/mart_account_health.sql`
 - API endpoint: `GET /api/account-health`
@@ -207,6 +206,3 @@ More detail: [AI Collaboration Disclosure](./docs/AI_COLLABORATION_DISCLOSURE.md
 - [Measure Dictionary](./docs/MEASURE_DICTIONARY.md)
 - [Predictive Outlook Method](./docs/PREDICTIVE_OUTLOOK_METHOD.md)
 - [Statistical Analytics Stack](./docs/STATISTICAL_ANALYTICS_STACK.md)
-- [Project Interview Narrative](./docs/PROJECT_INTERVIEW_NARRATIVE.md)
-- [Recruiter Review](./docs/RECRUITER_REVIEW.md)
-- [LinkedIn and GitHub Copy](./docs/LINKEDIN_PROJECT_COPY.md)
