@@ -1,70 +1,66 @@
 # Data Pipeline Portfolio
 
+[English](./README.md) | [Português](./README.pt.md)
+
 ![Social preview](./assets/social-preview.png)
 
-Portfólio de analytics engineering com interface `desktop-first`, construído com
-`Python`, `PostgreSQL`, `dbt`, `FastAPI` e uma camada própria de
-produto analítico.
+Um produto analítico ponta a ponta que transforma sinais de ecommerce, CRM,
+billing, suporte e marketing em decisões de receita, retenção e saúde de contas.
 
-Este repositório foi organizado como estudo de caso. A ideia não é mostrar só
-um dashboard final, mas a cadeia completa: ingestão, modelagem de warehouse,
-testes, monitoramento, semântica, API e experiência de análise.
+Construído com `Python`, `PostgreSQL`, `dbt`, `FastAPI` e uma interface de BI
+desktop-first. O repositório funciona como estudo de caso do fluxo completo:
+da ingestão de fontes às métricas confiáveis e às telas de investigação.
 
-## Resumo rápido
+> **Transparência do portfólio:** a camada de ecommerce usa uma amostra pública
+> do UCI Online Retail. Os registros de CRM, billing, suporte e marketing são
+> dados sintéticos criados para este estudo. Nenhum dado de cliente foi incluído.
 
-- `100.000+` linhas de pedidos simuladas
-- `10.000` clientes e `2.000` produtos
-- warehouse com `dbt`, testes e snapshot
-- backend FastAPI e frontend analítico em formato desktop
-- análises de negócio além de KPI básico:
-  - Pareto / `ABC`
-  - `RFM`
-  - cohorts de retenção
-  - anomalias e mudanças estruturais
-  - cenários preditivos
-- recursos de produto:
-  - `Data Center`
-  - `Spotlight`
-  - `Compare`
-  - `Bookmarks`
-  - `Recent`
-  - `Action Board`
-- visão de confiabilidade das fontes:
-  - seleção de fontes e preview local de CSV/JSON dentro do app
-  - profiling automatico de arquivos, classificacao do dataset, sugestao de mapeamento e janela isolada `Imported Dataset`
-  - últimas cargas de fontes registradas
-  - profiling de nulos e chaves duplicadas
-  - metadados de batch dentro do desktop analítico
-- visão de saúde operacional de contas:
-  - CRM, billing, suporte e ecommerce unidos em um mart governado
-  - watchlist de risco por conta, tickets abertos e saldo pendente
+## O que este projeto comprova
 
-## O que o projeto demonstra
+- `100.000` transações públicas de varejo, com `4.151` clientes e `3.379` produtos
+- fluxo governado `raw -> staging -> marts -> API semântica -> BI`, com testes e snapshots em dbt
+- análises de receita, Pareto/ABC, RFM, retenção, previsão, qualidade de fontes e saúde de contas
+- investigação operacional que une CRM, billing, suporte e ecommerce em uma watchlist acionável
 
-- ingestão em camada `raw`
-- ingestão registrada de fontes CSV/JSON/API simulada com metadados de carga e profiling
-- intake local sem programacao dentro do app: parsing de CSV/JSON, perfil das colunas, sugestao de mapeamento e analise preview antes de qualquer promocao governada
-- modelagem de warehouse com `dbt`
-- testes e objetos de qualidade de dados
-- definição semântica de métricas de BI
-- entrega analítica via API
-- uma UX desktop para investigação, não só um dashboard estático
+## Demonstração do Produto
 
-## Galeria
+### Account Health
+
+<img src="./assets/gallery/desktop-account-health.png" alt="Account Health combinando sinais de CRM, billing, suporte e ecommerce" width="900">
+
+O caso de negócio principal: identificar quais contas precisam de atenção, por
+que precisam e qual sinal operacional está elevando a prioridade.
+
+### Decisões de Receita e Produto
+
+<img src="./assets/gallery/desktop-sales-overview.png" alt="Sales Overview com tendências de receita e análise Pareto por categoria" width="900">
+
+Receita, volume de pedidos, ticket médio e concentração Pareto aparecem na
+mesma visão de decisão, sem depender de páginas de dashboard desconectadas.
+
+### Saúde das Fontes
+
+<img src="./assets/gallery/desktop-source-health.png" alt="Source Health com cargas registradas, chaves duplicadas e profiling de nulos" width="900">
+
+A camada de fontes torna metadados de carga, checagens de duplicidade e
+profiling de nulos visíveis antes de promover os dados para os modelos de BI.
+
+### Fluxo de Investigação
+
+<img src="./assets/gallery/desktop-workflow.png" alt="Fluxo de investigação entre Sales Overview, Predictive Outlook e Account Health" width="900">
 
 <img src="./assets/gallery/nextgen-demo.gif" alt="Demo curta do desktop analítico NextGen" width="900">
 
 Arquivo de gravação interativa: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
 
-<img src="./assets/gallery/desktop-home-compact.png" alt="Desktop analytics shell em viewport compacto" width="900">
+## Escopo Técnico
 
-<img src="./assets/gallery/desktop-workflow.png" alt="Workflow de investigação com Sales Overview, Predictive Outlook e Account Health" width="900">
+- ingestão de fontes `CSV`/`JSON`/`API`, profiling e mapeamento sugerido no app
+- warehouse em dbt com camadas `raw`, staging, marts, testes e snapshot
+- definições semânticas de métricas e entrega analítica via FastAPI
+- recursos de investigação: `Data Center`, `Spotlight`, `Compare`, `Bookmarks`, `Recent` e `Action Board`
 
-<img src="./assets/gallery/desktop-source-health.png" alt="Source Health com monitoramento de carga e qualidade das fontes registradas" width="900">
-
-<img src="./assets/gallery/desktop-account-health.png" alt="Account Health com análise operacional multi-source no desktop" width="900">
-
-Case de Account Health:
+## Referências do Case de Account Health
 
 - [Account Health Case Study](./docs/ACCOUNT_HEALTH_CASE_STUDY.md)
 - [Demo Script](./docs/DEMO_SCRIPT.md)

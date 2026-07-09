@@ -1,73 +1,66 @@
 # Data Pipeline Portfolio
 
+[English](./README.md) | [Portuguese](./README.pt.md)
+
 ![Social preview](./assets/social-preview.png)
 
-Desktop-first analytics engineering portfolio built with `Python`,
-`PostgreSQL`, `dbt`, `FastAPI`, and a custom BI product layer.
+An end-to-end analytics platform that turns retail, CRM, billing, support, and
+marketing signals into revenue, retention, and account-health decisions.
 
-This repository is meant to be read like a case study. It shows the full
-analytics lifecycle: ingestion, warehouse modeling, tests, monitoring,
-semantic definitions, API delivery, and an interactive analytics interface.
+Built with `Python`, `PostgreSQL`, `dbt`, `FastAPI`, and a custom desktop BI
+interface. The repository is a case study of the full analytics workflow, from
+source ingestion through trusted business metrics and investigation-ready views.
 
-## TL;DR
+> **Portfolio disclosure:** the ecommerce layer uses a public UCI Online Retail
+> sample. CRM, billing, support, and marketing records are synthetic fixtures
+> created for the case study. No client data is included.
 
-- `100,000` real retail transaction lines from a governed UCI Online Retail sample,
-  with `4,000+` customers and `3,000+` products
-- `dbt` warehouse with marts, tests, and snapshot modeling
-- FastAPI analytics backend plus a desktop-style BI interface
-- business analysis methods beyond topline dashboards:
-  - executive KPI scorecard
-  - Pareto / `ABC`
-  - `RFM`
-  - retention cohorts
-  - marketing efficiency / `ROAS`
-  - anomaly and structural shift detection
-  - forecast scenarios
-- product-style investigation features:
-  - `Data Center`
-  - `Spotlight`
-  - `Compare`
-  - `Bookmarks`
-  - `Recent`
-  - `Action Board`
-- source reliability view:
-  - in-app source selection and local CSV/JSON preview
-  - automatic file profiling, dataset classification, mapping suggestions, and an isolated `Imported Dataset` preview window
-  - latest registered source loads
-  - duplicate-key and null profiling
-  - batch metadata surfaced in the analytics desktop
-- account health view:
-  - CRM, billing, support, and ecommerce signals joined into one mart
-  - governed watchlist for risk tier, open tickets, and outstanding balance
+## What This Proves
 
-## What This Repository Demonstrates
+- `100,000` public retail transaction lines, with `4,151` customers and `3,379` products
+- a governed `raw -> staging -> marts -> semantic API -> BI` workflow with dbt tests and snapshots
+- business analysis for revenue, Pareto/ABC, RFM, retention, forecasting, source quality, and account health
+- an investigation workflow that combines CRM, billing, support, and ecommerce signals into an actionable watchlist
 
-- ingestion into a `raw` layer
-- consolidated canonical retail dataset with derived customers, products, and
-  order lines from the same source
-- registered CSV/JSON/API-style source ingestion with load metadata and profiling
-- no-code local file intake in the app: CSV/JSON parsing, column profiling, suggested mappings, and preview analysis before governed promotion
-- warehouse modeling with `dbt`
-- data quality testing and monitoring objects
-- semantic KPI definitions for BI
-- API-first analytics delivery
-- a desktop-first analytics UX instead of a static dashboard
+## Product Walkthrough
 
-## Gallery
+### Account Health
 
-<img src="./assets/gallery/nextgen-demo.gif" alt="Short NextGen analytics desktop demo" width="900">
+<img src="./assets/gallery/desktop-account-health.png" alt="Account Health watchlist combining CRM, billing, support, and ecommerce signals" width="900">
 
-Interactive recording file: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
+The strongest business case: identify which accounts need attention, why they
+need it, and what operational signal is driving the priority.
 
-<img src="./assets/gallery/desktop-home-compact.png" alt="NextGen desktop analytics shell in a compact browser viewport" width="900">
+### Revenue and Product Decisions
+
+<img src="./assets/gallery/desktop-sales-overview.png" alt="Sales Overview with revenue trends and category Pareto analysis" width="900">
+
+Revenue, order volume, average ticket, and Pareto concentration are available
+in one decision view rather than in disconnected dashboard pages.
+
+### Source Health
+
+<img src="./assets/gallery/desktop-source-health.png" alt="Source Health monitoring registered loads, duplicate keys, and null profiling" width="900">
+
+The source layer makes load metadata, duplicate checks, and null profiling
+visible before data is promoted into BI-ready models.
+
+### Investigation Workflow
 
 <img src="./assets/gallery/desktop-workflow.png" alt="Layered investigation workflow with Sales Overview, Predictive Outlook, and Account Health" width="900">
 
-<img src="./assets/gallery/desktop-source-health.png" alt="Source Health registered-source quality and load monitoring view" width="900">
+Short interaction preview: [nextgen-demo.webm](./assets/gallery/nextgen-demo.webm)
 
-<img src="./assets/gallery/desktop-account-health.png" alt="Account Health multi-source operations view inside the desktop analytics shell" width="900">
+<img src="./assets/gallery/nextgen-demo.gif" alt="Short NextGen analytics desktop demo" width="900">
 
-Account Health case:
+## Technical Scope
+
+- registered CSV, JSON, and API-style source ingestion with load metadata and profiling
+- dbt warehouse models, snapshots, data quality tests, and monitoring objects
+- semantic KPI definitions and FastAPI delivery contracts
+- a desktop-first analytics UX with drilldowns, comparisons, saved workspaces, and action follow-up
+
+Account Health references:
 
 - [Account Health Case Study](./docs/ACCOUNT_HEALTH_CASE_STUDY.md)
 - [Demo Script](./docs/DEMO_SCRIPT.md)
