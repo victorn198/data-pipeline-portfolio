@@ -2,6 +2,8 @@
 
 [English](./README.md) | [Portuguese](./README.pt.md)
 
+[![Portfolio quality](https://github.com/victorn198/data-pipeline-portfolio/actions/workflows/quality.yml/badge.svg)](https://github.com/victorn198/data-pipeline-portfolio/actions/workflows/quality.yml)
+
 ![Social preview](./assets/social-preview.png)
 
 An end-to-end analytics platform that turns retail, CRM, billing, support, and
@@ -14,6 +16,8 @@ source ingestion through trusted business metrics and investigation-ready views.
 > **Portfolio disclosure:** the ecommerce layer uses a public UCI Online Retail
 > sample. CRM, billing, support, and marketing records are synthetic fixtures
 > created for the case study. No client data is included.
+
+**See it in action:** [90-second product walkthrough](./assets/gallery/nextgen-demo.webm) | [guided demo script](./docs/DEMO_SCRIPT.md)
 
 ## What This Proves
 
@@ -113,24 +117,37 @@ is offline.
 - Python `3.10+`
 - Docker Desktop or local PostgreSQL
 
-### Run locally
+### Windows: run the complete demo
+
+```powershell
+.\scripts\run-demo.ps1
+```
+
+The script creates the local virtual environment and dbt profile when missing,
+starts PostgreSQL, loads the source data, builds and tests the warehouse, then
+opens the Account Health walkthrough. On later runs, use `-SkipInstall` to skip
+dependency installation.
+
+### Manual run
 
 ```bash
-docker compose up -d
 cp .env.example .env
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+cp dbtproject/profiles.yml.example dbtproject/profiles.yml
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install --upgrade pip setuptools
 pip install -r requirements.txt -c constraints.txt
+docker compose up -d
 python scripts/loadsampledata.py --mode full_refresh
 python scripts/load_registered_sources.py
 cd dbtproject
+export DBT_PROFILES_DIR=$(pwd)
 dbt deps
 dbt run --full-refresh
 dbt snapshot
 dbt test
 cd ..
-uvicorn nextgen_dashboard.backend.main:app --reload --port 8601
+python -m uvicorn nextgen_dashboard.backend.main:app --reload --port 8601
 ```
 
 Open `http://127.0.0.1:8601`
@@ -138,11 +155,10 @@ Open `http://127.0.0.1:8601`
 ## Quality and Security
 
 ```bash
-python -m pip install --upgrade pip setuptools
-pip install -r requirements.txt -c constraints.txt
-pytest tests/test_nextgen_dashboard_api.py
-python scripts/benchmark_dashboard.py --threshold-seconds 1.50
+./scripts/verify-portfolio.ps1
 ```
+
+Add `-IncludeWarehouse` after a local demo setup to run dbt tests too.
 
 Current hardening in the repo:
 

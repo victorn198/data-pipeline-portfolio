@@ -8,10 +8,11 @@ portfolio work.
 Run:
 
 ```powershell
-python -m pytest tests/test_nextgen_dashboard_api.py
+.\scripts\verify-portfolio.ps1
 ```
 
-This covers:
+This runs the application tests, frontend syntax check, KPI audit, and route
+benchmark. It covers:
 
 - root and health endpoints
 - filter metadata
@@ -75,10 +76,14 @@ When changing pipeline logic or marts:
 
 ```powershell
 cd dbtproject
+export DBT_PROFILES_DIR=$(pwd)
 dbt run
 dbt snapshot
 dbt test
 ```
+
+The GitHub Actions workflow repeats the complete PostgreSQL load, dbt build,
+and application verification on every pull request and push to `main`.
 
 ## 6. Manual Smoke
 

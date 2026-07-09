@@ -1,0 +1,101 @@
+name: Portfolio quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build and verify analytics product
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_SCHEMA: raw
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/analytics
+      PYTHONPATH: ${{ github.workspace }}
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: analytics
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d analytics"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            constraints.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          pip install -r requirements.txt -c constraints.txt
+
+      - name: Configure dbt profile
+        run: cp dbtproject/profiles.yml.example dbtproject/profiles.yml
+
+      - name: Set up PostgreSQL schemas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql "postgresql://postgres:postgres@localhost:5432/analytics" -f scripts/setup_postgres.sql
+
+      - name: Load source data
+        run: |
+          python scripts/loadsampledata.py --mode full_refresh
+          python scripts/load_registered_sources.py
+
+      - name: Build and test warehouse
+        working-directory: dbtproject
+        env:
+          DBT_PROFILES_DIR: ${{ github.workspace }}/dbtproject
+        run: |
+          dbt deps
+          dbt run --full-refresh
+          dbt snapshot
+          dbt test
+
+      - name: Run application tests and frontend syntax check
+        env:
+          NEXTGEN_SKIP_PREWARM: "1"
+        run: |
+          python -m pytest tests
+          node --check nextgen_dashboard/frontend/app.js
+
+      - name: Audit dashboard metrics
+        run: python scripts/audit_dashboard_metrics.py --summary-only
+
+      - name: Benchmark dashboard routes
+        run: python scripts/benchmark_dashboard.py --threshold-seconds 1.50

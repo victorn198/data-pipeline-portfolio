@@ -2,6 +2,9 @@
 .idea/
 venv/
 .venv/
+.dbt-venv/
+.pip-cache/
+/.tmp/
 __pycache__/
 *.pyc
 .mypy_cache/

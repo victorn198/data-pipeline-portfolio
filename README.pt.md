@@ -2,6 +2,8 @@
 
 [English](./README.md) | [Português](./README.pt.md)
 
+[![Qualidade do portfólio](https://github.com/victorn198/data-pipeline-portfolio/actions/workflows/quality.yml/badge.svg)](https://github.com/victorn198/data-pipeline-portfolio/actions/workflows/quality.yml)
+
 ![Social preview](./assets/social-preview.png)
 
 Um produto analítico ponta a ponta que transforma sinais de ecommerce, CRM,
@@ -14,6 +16,8 @@ da ingestão de fontes às métricas confiáveis e às telas de investigação.
 > **Transparência do portfólio:** a camada de ecommerce usa uma amostra pública
 > do UCI Online Retail. Os registros de CRM, billing, suporte e marketing são
 > dados sintéticos criados para este estudo. Nenhum dado de cliente foi incluído.
+
+**Veja em funcionamento:** [demonstração do produto em 90 segundos](./assets/gallery/nextgen-demo.webm) | [roteiro guiado](./docs/DEMO_SCRIPT.md)
 
 ## O que este projeto comprova
 
@@ -110,23 +114,37 @@ banco local não está rodando.
 - Python `3.10+`
 - Docker Desktop ou PostgreSQL local
 
-### Rodar localmente
+### Windows: rodar a demonstração completa
+
+```powershell
+.\scripts\run-demo.ps1
+```
+
+O script cria o ambiente virtual e o perfil dbt quando faltarem, inicia o
+PostgreSQL, carrega as fontes, constrói e testa o warehouse, e abre a jornada
+de Account Health. Nas execuções seguintes, use `-SkipInstall` para não
+reinstalar as dependências.
+
+### Execução manual
 
 ```bash
-docker compose up -d
 cp .env.example .env
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+cp dbtproject/profiles.yml.example dbtproject/profiles.yml
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools
+pip install -r requirements.txt -c constraints.txt
+docker compose up -d
 python scripts/loadsampledata.py --mode full_refresh
 python scripts/load_registered_sources.py
 cd dbtproject
+export DBT_PROFILES_DIR=$(pwd)
 dbt deps
 dbt run --full-refresh
 dbt snapshot
 dbt test
 cd ..
-uvicorn nextgen_dashboard.backend.main:app --reload --port 8601
+python -m uvicorn nextgen_dashboard.backend.main:app --reload --port 8601
 ```
 
 Acesse `http://127.0.0.1:8601`
@@ -134,9 +152,11 @@ Acesse `http://127.0.0.1:8601`
 ## Qualidade e segurança
 
 ```bash
-pytest tests/test_nextgen_dashboard_api.py
-python scripts/benchmark_dashboard.py --threshold-seconds 1.50
+.\scripts\verify-portfolio.ps1
 ```
+
+Acrescente `-IncludeWarehouse` depois de preparar a demo local para executar os
+testes dbt também.
 
 Hardening aplicado:
 

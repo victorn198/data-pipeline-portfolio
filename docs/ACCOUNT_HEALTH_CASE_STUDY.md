@@ -47,6 +47,21 @@ The output is classified into:
 It also exposes a `primary_risk_driver` so the dashboard explains why an account
 needs action.
 
+## Decision Contract and Measurement
+
+The operational decision is deliberately narrow: route the lowest-score
+accounts to the responsible owner before a generic account review. In a real
+implementation, the team would measure whether this prioritization improves:
+
+- percentage of `risk` and `watch` accounts contacted within 48 hours;
+- days to resolve a past-due invoice or high-priority ticket;
+- movement from `risk` or `watch` to `healthy` over a defined period;
+- retained revenue and outstanding balance recovered from the prioritized cohort.
+
+The fixtures in this repository do not claim those outcomes. They demonstrate
+the data contract, score, and operating view needed to measure them once real
+source systems are connected.
+
 ## Dashboard Workflow
 
 The `Account Health` desktop window answers three questions in order:
