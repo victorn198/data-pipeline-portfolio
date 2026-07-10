@@ -29,17 +29,38 @@ powerbi-api-portfolio/
 ├── powerbi/
 ├── sql/
 │   ├── 001_schema.sql
-│   └── 002_powerbi_view.sql
+│   ├── 002_powerbi_view.sql
+│   └── 003_validation_queries.sql
 ├── src/
 │   └── ingest_github.py
+├── scripts/
+│   └── setup.ps1
+├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
 
-## Próximos passos
+## Executar localmente
 
-1. configurar PostgreSQL;
-2. executar a ingestão;
-3. criar a view analítica;
-4. conectar o Power BI à view;
-5. adicionar screenshots e medidas DAX.
+Pré-requisitos: Docker Desktop e Python instalados.
+
+```powershell
+cd D:\projects\data-pipeline-portfolio-presentation\powerbi-api-portfolio
+.\scripts\setup.ps1
+```
+
+O script cria o ambiente Python, sobe PostgreSQL, cria o schema, coleta os
+repositórios e cria a view para o Power BI. Antes da execução, revise
+`.env`, principalmente `GITHUB_OWNER`.
+
+## Conexão no Power BI
+
+Use o conector PostgreSQL com:
+
+- servidor: `localhost:5434`;
+- banco: `github_bi`;
+- schema: `mart`;
+- tabela/view: `vw_powerbi_repositories`.
+
+As medidas iniciais estão em `powerbi/measures.dax`. O arquivo do relatório
+deve ser salvo em `powerbi/`.

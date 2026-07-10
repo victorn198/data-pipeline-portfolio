@@ -1,0 +1,16 @@
+Repository Count = DISTINCTCOUNT ( vw_powerbi_repositories[repository_id] )
+
+Total Stars = SUM ( vw_powerbi_repositories[stars] )
+
+Total Forks = SUM ( vw_powerbi_repositories[forks] )
+
+Open Issues = SUM ( vw_powerbi_repositories[open_issues] )
+
+Active Repositories =
+CALCULATE (
+    [Repository Count],
+    vw_powerbi_repositories[activity_status] = "Active"
+)
+
+Average Stars per Repository =
+DIVIDE ( [Total Stars], [Repository Count] )
