@@ -8,24 +8,40 @@ import requests
 from dotenv import load_dotenv
 
 
-def fetch_repositories(owner: str, token: str | None) -> list[dict]:
+def fetch_repositories(
+    owner: str, token: str | None, search_query: str | None = None
+) -> list[dict]:
     headers = {"Accept": "application/vnd.github+json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    url = (
+        "https://api.github.com/search/repositories"
+        if search_query
+        else f"https://api.github.com/users/{owner}/repos"
+    )
+    params = (
+        {"q": search_query, "per_page": 100, "sort": "stars", "order": "desc"}
+        if search_query
+        else {"per_page": 100, "sort": "updated"}
+    )
     response = requests.get(
-        f"https://api.github.com/users/{owner}/repos",
-        params={"per_page": 100, "sort": "updated"},
+        url,
+        params=params,
         headers=headers,
         timeout=30,
     )
     response.raise_for_status()
-    return response.json()
+    payload = response.json()
+    return payload["items"] if search_query else payload
 
 
 def main() -> None:
     load_dotenv()
     owner = os.environ["GITHUB_OWNER"]
-    repositories = fetch_repositories(owner, os.getenv("GITHUB_TOKEN"))
+    search_query = os.getenv("GITHUB_QUERY") or None
+    repositories = fetch_repositories(
+        owner, os.getenv("GITHUB_TOKEN"), search_query=search_query
+    )
     connection = psycopg2.connect(
         host=os.getenv("POSTGRES_HOST", "localhost"),
         port=int(os.getenv("POSTGRES_PORT", "5432")),
@@ -36,6 +52,8 @@ def main() -> None:
     collected_at = datetime.now(timezone.utc)
     try:
         with connection, connection.cursor() as cursor:
+            if search_query:
+                cursor.execute("truncate table raw.github_repositories")
             for repository in repositories:
                 cursor.execute(
                     """
@@ -72,7 +90,8 @@ def main() -> None:
                 )
     finally:
         connection.close()
-    print(f"Loaded {len(repositories)} repositories for {owner}.")
+    source = f"search '{search_query}'" if search_query else f"owner {owner}"
+    print(f"Loaded {len(repositories)} repositories from {source}.")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,114 @@
+/// Public data-engineering repositories collected from the GitHub API; one row per repository.
+table Repositories
+
+	/// Number of distinct repositories in the active filter context.
+	measure '# Repositories' = DISTINCTCOUNT(Repositories[Repository ID])
+		formatString: #,##0
+		displayFolder: Metrics
+
+	/// Sum of GitHub stars, used as a proxy for community interest.
+	measure 'Total Stars' = SUM(Repositories[Stars])
+		formatString: #,##0
+		displayFolder: Metrics
+
+	/// Sum of repository forks in the active filter context.
+	measure 'Total Forks' = SUM(Repositories[Forks])
+		formatString: #,##0
+		displayFolder: Metrics
+
+	/// Sum of currently open issues reported by GitHub.
+	measure '# Open Issues' = SUM(Repositories[Open Issues])
+		formatString: #,##0
+		displayFolder: Metrics
+
+	/// Share of repositories updated during the last 90 days and not archived.
+	measure 'Active Repository Rate' = DIVIDE(CALCULATE([# Repositories], Repositories[Activity Status] = "Active"), [# Repositories])
+		formatString: 0.0%
+		displayFolder: Metrics
+
+	column 'Repository ID'
+		dataType: int64
+		isHidden
+		summarizeBy: none
+		sourceColumn: repository_id
+
+	/// Public repository name.
+	column Repository
+		dataType: string
+		sourceColumn: repository_name
+
+	/// GitHub owner and repository path.
+	column 'Full Name'
+		dataType: string
+		sourceColumn: repository_full_name
+
+	/// GitHub user or organization that owns the repository.
+	column Owner
+		dataType: string
+		sourceColumn: repository_owner
+
+	/// Primary programming language reported by GitHub.
+	column Language
+		dataType: string
+		sourceColumn: language
+
+	/// Number of users who starred the repository.
+	column Stars
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: stars
+
+	/// Number of repository forks.
+	column Forks
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: forks
+
+	/// Number of currently open issues reported by GitHub.
+	column 'Open Issues'
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: open_issues
+
+	column 'Is Archived'
+		dataType: boolean
+		isHidden
+		sourceColumn: is_archived
+
+	/// Date when the repository was created.
+	column 'Created Date'
+		dataType: dateTime
+		formatString: Short Date
+		sourceColumn: created_date
+
+	/// Date of the latest repository update recorded by GitHub.
+	column 'Updated Date'
+		dataType: dateTime
+		formatString: Short Date
+		sourceColumn: updated_date
+
+	column 'Collected Date'
+		dataType: dateTime
+		isHidden
+		formatString: Short Date
+		sourceColumn: collected_date
+
+	/// Number of days since the latest repository update.
+	column 'Days Since Update'
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: days_since_update
+
+	/// Governed status: Active, Stale, or Archived.
+	column 'Activity Status'
+		dataType: string
+		sourceColumn: activity_status
+
+	partition Repositories = m
+		mode: import
+		source =
+			let
+				Source = PostgreSQL.Database("127.0.0.1:5434", "github_bi"),
+				Repositories = Source{[Schema="mart", Item="vw_powerbi_repositories"]}[Data]
+			in
+				Repositories

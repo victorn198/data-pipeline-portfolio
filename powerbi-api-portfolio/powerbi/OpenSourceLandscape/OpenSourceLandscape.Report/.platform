@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Open Source Landscape"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "2f2d44ac-0a98-4fd7-863c-f1f030f1c0bf"
+  }
+}

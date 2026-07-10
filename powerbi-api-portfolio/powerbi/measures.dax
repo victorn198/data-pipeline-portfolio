@@ -4,7 +4,7 @@ Total Stars = SUM ( vw_powerbi_repositories[stars] )
 
 Total Forks = SUM ( vw_powerbi_repositories[forks] )
 
-Open Issues = SUM ( vw_powerbi_repositories[open_issues] )
+# Open Issues = SUM ( vw_powerbi_repositories[open_issues] )
 
 Active Repositories =
 CALCULATE (

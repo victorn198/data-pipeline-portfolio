@@ -1,66 +1,71 @@
-# Power BI API Portfolio
+# Open Source Data Engineering Landscape
 
-Projeto simples de BI com dados públicos da GitHub API.
+Portfolio project that turns live GitHub API data into a governed PostgreSQL
+dataset and a reproducible Power BI report.
 
-## Arquitetura
+![Power BI report](powerbi/screenshots/landscape-overview-final.png)
 
-```text
-GitHub API -> Python -> PostgreSQL -> view SQL -> Power BI
-```
-
-## Objetivo
-
-Demonstrar um fluxo completo e reproduzível de ingestão, tratamento SQL e
-consumo analítico no Power BI.
-
-## Escopo inicial
-
-- coletar repositórios públicos de um usuário ou organização;
-- armazenar os dados brutos no PostgreSQL;
-- preparar uma view analítica para o Power BI;
-- acompanhar repositórios, issues, pull requests e atividade mensal;
-- validar os indicadores com queries SQL simples.
-
-## Estrutura
+## Architecture
 
 ```text
-powerbi-api-portfolio/
-├── data/
-├── powerbi/
-├── sql/
-│   ├── 001_schema.sql
-│   ├── 002_powerbi_view.sql
-│   └── 003_validation_queries.sql
-├── src/
-│   └── ingest_github.py
-├── scripts/
-│   └── setup.ps1
-├── docker-compose.yml
-├── .env.example
-└── README.md
+GitHub Search API -> Python ingestion -> PostgreSQL -> analytical SQL view -> Power BI
 ```
 
-## Executar localmente
+The default query collects the 100 most relevant public repositories for
+`topic:data-engineering stars:>100`. The report exposes the collected evidence,
+not manually entered KPI values.
 
-Pré-requisitos: Docker Desktop e Python instalados.
+## What it demonstrates
+
+- REST API ingestion with pagination and optional token authentication;
+- idempotent raw-data loading into PostgreSQL;
+- a typed analytical view with repository, owner, activity and engagement data;
+- reusable DAX measures and a source-controlled PBIP/PBIR report;
+- SQL checks that reconcile the report indicators with the database.
+
+## Run everything
+
+Requirements: Python, Node.js, PostgreSQL binaries and Power BI Desktop.
 
 ```powershell
-cd D:\projects\data-pipeline-portfolio-presentation\powerbi-api-portfolio
-.\scripts\setup.ps1
+cd .\powerbi-api-portfolio
+Copy-Item .env.example .env
+.\scripts\run-all.ps1
 ```
 
-O script cria o ambiente Python, sobe PostgreSQL, cria o schema, coleta os
-repositórios e cria a view para o Power BI. Antes da execução, revise
-`.env`, principalmente `GITHUB_OWNER`.
+The script creates a local Python environment and an isolated PostgreSQL data
+directory inside this project, loads the API data, builds the analytical view,
+generates and validates the PBIP project, then opens it in Power BI Desktop.
 
-## Conexão no Power BI
+On the first refresh, use the local development credentials from `.env`. The
+example defaults are `postgres` / `postgres`. Accept an unencrypted connection
+only for this isolated localhost instance.
 
-Use o conector PostgreSQL com:
+To rebuild without reinstalling Python packages or opening Desktop:
 
-- servidor: `localhost:5434`;
-- banco: `github_bi`;
-- schema: `mart`;
-- tabela/view: `vw_powerbi_repositories`.
+```powershell
+.\scripts\run-all.ps1 -SkipInstall -NoOpen
+```
 
-As medidas iniciais estão em `powerbi/measures.dax`. O arquivo do relatório
-deve ser salvo em `powerbi/`.
+## Project map
+
+```text
+_brief/report-spec.md             report scope and design contract
+powerbi/OpenSourceLandscape/      source-controlled PBIP project
+powerbi/screenshots/              verified report preview
+scripts/run-all.ps1               one-command orchestration
+scripts/generate_pbip.mjs         deterministic PBIP generator
+src/ingest_github.py              GitHub API ingestion
+sql/001_schema.sql                database schema
+sql/002_powerbi_view.sql          analytical view
+sql/003_validation_queries.sql    KPI reconciliation checks
+```
+
+## Power BI source
+
+- Server: `127.0.0.1:5434`
+- Database: `github_bi`
+- View: `mart.vw_powerbi_repositories`
+
+Configure `GITHUB_QUERY` in `.env` to research another public software market.
+A `GITHUB_TOKEN` is optional but increases the API rate limit.
